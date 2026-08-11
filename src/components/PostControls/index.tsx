@@ -14,6 +14,7 @@ import {AnimatedLikeIcon} from '#/lib/custom-animations/LikeIcon'
 import {useOpenComposer} from '#/lib/hooks/useOpenComposer'
 import {type Shadow} from '#/state/cache/types'
 import {useFeedFeedbackContext} from '#/state/feed-feedback'
+import {usePreferGoogleTranslate} from '#/state/preferences'
 import {
   usePostLikeMutationQueue,
   usePostRepostMutationQueue,
@@ -54,7 +55,7 @@ let PostControls = ({
   onShowLess,
   viaRepost,
   variant,
-  forceGoogleTranslate = false,
+  forceGoogleTranslate: forceGoogleTranslateProp,
 }: {
   big?: boolean
   post: Shadow<AppBskyFeedDefs.PostView>
@@ -75,6 +76,8 @@ let PostControls = ({
   const ax = useAnalytics()
   const t = useTheme()
   const {t: l} = useLingui()
+  const preferGoogleTranslate = usePreferGoogleTranslate()
+  const forceGoogleTranslate = forceGoogleTranslateProp ?? preferGoogleTranslate
   const {openComposer} = useOpenComposer()
   const {feedDescriptor} = useFeedFeedbackContext()
   const [queueLike, queueUnlike] = usePostLikeMutationQueue(

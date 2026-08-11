@@ -10,8 +10,13 @@ import {
 } from '#/lib/routes/types'
 import {languageName, sanitizeAppLanguageSetting} from '#/locale/helpers'
 import {APP_LANGUAGES, LANGUAGES} from '#/locale/languages'
-import {useLanguagePrefs, useLanguagePrefsApi} from '#/state/preferences'
-import {atoms as a, web} from '#/alf'
+import {
+  useLanguagePrefs,
+  useLanguagePrefsApi,
+  usePreferGoogleTranslate,
+  useSetPreferGoogleTranslate,
+} from '#/state/preferences'
+import {atoms as a, useTheme, web} from '#/alf'
 import {Admonition} from '#/components/Admonition'
 import {Button} from '#/components/Button'
 import {useDialogControl} from '#/components/Dialog'
@@ -31,8 +36,11 @@ const DEDUPED_LANGUAGES = LANGUAGES.filter(
 type Props = NativeStackScreenProps<CommonNavigatorParams, 'LanguageSettings'>
 export function LanguageSettingsScreen({}: Props) {
   const {_} = useLingui()
+  const t = useTheme()
   const langPrefs = useLanguagePrefs()
   const setLangPrefs = useLanguagePrefsApi()
+  const preferGoogleTranslate = usePreferGoogleTranslate()
+  const setPreferGoogleTranslate = useSetPreferGoogleTranslate()
 
   // changing langPrefs causes a slow re-render, so we use a local state copy
   // and update that first to drive the UI on this screen to keep it snappy
@@ -246,6 +254,33 @@ export function LanguageSettingsScreen({}: Props) {
                 }}
               />
             </View>
+          </SettingsList.Group>
+          <SettingsList.Divider />
+          <SettingsList.Group
+            iconInset={false}
+            contentContainerStyle={[a.gap_sm]}>
+            <SettingsList.ItemText>
+              <Trans>Translation</Trans>
+            </SettingsList.ItemText>
+            <Toggle.Item
+              name="prefer_google_translate"
+              label={_(msg`Translate with Google Translate`)}
+              value={preferGoogleTranslate}
+              onChange={value => setPreferGoogleTranslate(value)}
+              style={[a.w_full]}>
+              <Toggle.LabelText style={[a.flex_1]}>
+                <Trans>Translate with Google Translate</Trans>
+              </Toggle.LabelText>
+              <Toggle.Platform />
+            </Toggle.Item>
+            <Text
+              style={[a.text_sm, a.leading_snug, t.atoms.text_contrast_medium]}>
+              <Trans>
+                Posts are translated on your device by default, which works
+                offline but is less accurate. Turn this on to open posts in
+                Google Translate instead.
+              </Trans>
+            </Text>
           </SettingsList.Group>
         </SettingsList.Container>
       </Layout.Content>

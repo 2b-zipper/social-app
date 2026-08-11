@@ -16,7 +16,7 @@ import {
   languageName,
 } from '#/locale/helpers'
 import {LANGUAGES} from '#/locale/languages'
-import {useLanguagePrefs} from '#/state/preferences'
+import {useLanguagePrefs, usePreferGoogleTranslate} from '#/state/preferences'
 import {atoms as a, flatten, native, useTheme, web} from '#/alf'
 import {Button} from '#/components/Button'
 import {ArrowRight_Stroke2_Corner0_Rounded as ArrowRightIcon} from '#/components/icons/Arrow'
@@ -42,8 +42,10 @@ export function TranslatedPost({
   postTextStyle?: StyleProp<TextStyle>
 }) {
   const langPrefs = useLanguagePrefs()
+  const preferGoogleTranslate = usePreferGoogleTranslate()
   const {clearTranslation, translate, translationState} = useTranslate({
     key: post.uri,
+    forceGoogleTranslate: preferGoogleTranslate,
   })
 
   const record = useMemo<AppBskyFeedPost.Record | undefined>(() => {

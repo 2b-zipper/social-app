@@ -124,6 +124,7 @@ const schema = z.object({
   disableHaptics: z.boolean().optional(),
   disableAutoplay: z.boolean().optional(),
   kawaii: z.boolean().optional(),
+  preferGoogleTranslate: z.boolean().optional(),
   hasCheckedForStarterPack: z.boolean().optional(),
   subtitlesEnabled: z.boolean().optional(),
   /** @deprecated */
@@ -173,6 +174,7 @@ export const defaults: Schema = {
   disableHaptics: false,
   disableAutoplay: PlatformInfo.getIsReducedMotionEnabled(),
   kawaii: false,
+  preferGoogleTranslate: false,
   hasCheckedForStarterPack: false,
   subtitlesEnabled: true,
   trendingDisabled: false,
