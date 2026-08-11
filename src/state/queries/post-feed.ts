@@ -23,6 +23,7 @@ import {DemoFeedAPI} from '#/lib/api/feed/demo'
 import {FollowingFeedAPI} from '#/lib/api/feed/following'
 import {HomeFeedAPI} from '#/lib/api/feed/home'
 import {LikesFeedAPI} from '#/lib/api/feed/likes'
+import {LikesRecordsFeedAPI} from '#/lib/api/feed/likes-records'
 import {ListFeedAPI} from '#/lib/api/feed/list'
 import {MergeFeedAPI} from '#/lib/api/feed/merge'
 import {PostListFeedAPI} from '#/lib/api/feed/posts'
@@ -473,7 +474,10 @@ function createApi({
     return new AuthorFeedAPI({agent, feedParams: {actor, filter}})
   } else if (feedDesc.startsWith('likes')) {
     const [__, actor] = feedDesc.split('|')
-    return new LikesFeedAPI({agent, feedParams: {actor}})
+    if (agent.session?.did && actor === agent.session.did) {
+      return new LikesFeedAPI({agent, feedParams: {actor}})
+    }
+    return new LikesRecordsFeedAPI({agent, feedParams: {actor}})
   } else if (feedDesc.startsWith('feedgen')) {
     const [__, feed] = feedDesc.split('|')
     return new CustomFeedAPI({
