@@ -1,6 +1,6 @@
 import '#/logger/sentry/setup'
 
-import {Fragment, useEffect, useState} from 'react'
+import {Fragment, useEffect, useMemo, useState} from 'react'
 import {GestureHandlerRootView} from 'react-native-gesture-handler'
 import {KeyboardProvider as KeyboardControllerProvider} from 'react-native-keyboard-controller'
 import {
@@ -32,7 +32,10 @@ import {GlobalGestureEventsProvider} from '#/state/global-gesture-events'
 import {Provider as HomeBadgeProvider} from '#/state/home-badge'
 import {MessagesProvider} from '#/state/messages'
 import {init as initPersistedState} from '#/state/persisted'
-import {Provider as PrefsStateProvider} from '#/state/preferences'
+import {
+  Provider as PrefsStateProvider,
+  useMaterialYou,
+} from '#/state/preferences'
 import {BetaUserStorageSync} from '#/state/preferences/beta-user-sync'
 import {Provider as LabelDefsProvider} from '#/state/preferences/label-defs'
 import {Provider as ModerationOptsProvider} from '#/state/preferences/moderation-opts'
@@ -56,6 +59,7 @@ import {Provider as HiddenRepliesProvider} from '#/state/threadgate-hidden-repli
 import {TestCtrls} from '#/view/com/testing/TestCtrls'
 import {Shell} from '#/view/shell'
 import {atoms as a, ThemeProvider as Alf} from '#/alf'
+import {getMaterialYouThemes} from '#/alf/materialYou'
 import {useColorModeTheme} from '#/alf/util/useColorModeTheme'
 import {Provider as ContextMenuProvider} from '#/components/ContextMenu'
 import {useLandingEntry} from '#/components/hooks/useLandingEntry'
@@ -112,6 +116,11 @@ function InnerApp() {
   const {currentAccount} = useSession()
   const {resumeSession} = useSessionApi()
   const theme = useColorModeTheme()
+  const materialYou = useMaterialYou()
+  const materialYouThemes = useMemo(
+    () => (materialYou ? getMaterialYouThemes() : undefined),
+    [materialYou],
+  )
   const {t: l} = useLingui()
   const hasCheckedLanding = useLandingEntry()
 
@@ -143,7 +152,7 @@ function InnerApp() {
   }, [l])
 
   return (
-    <Alf theme={theme}>
+    <Alf theme={theme} themesOverride={materialYouThemes}>
       <ThemeProvider theme={theme}>
         <ContextMenuProvider>
           <Splash isReady={isReady && hasCheckedLanding}>

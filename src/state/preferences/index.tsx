@@ -8,6 +8,7 @@ import {Provider as InAppBrowserProvider} from './in-app-browser'
 import {Provider as KawaiiProvider} from './kawaii'
 import {Provider as LanguagesProvider} from './languages'
 import {Provider as LargeAltBadgeProvider} from './large-alt-badge'
+import {Provider as MaterialYouProvider} from './material-you'
 import {Provider as PreferGoogleTranslateProvider} from './prefer-google-translate'
 import {Provider as SubtitlesProvider} from './subtitles'
 import {Provider as TrendingSettingsProvider} from './trending'
@@ -27,6 +28,7 @@ export {
 export {useHiddenPosts, useHiddenPostsApi} from './hidden-posts'
 export {useLabelDefinitions} from './label-defs'
 export {useLanguagePrefs, useLanguagePrefsApi} from './languages'
+export {useMaterialYou, useSetMaterialYou} from './material-you'
 export {
   usePreferGoogleTranslate,
   useSetPreferGoogleTranslate,
@@ -49,7 +51,9 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
                           <KawaiiProvider>
                             <PreferGoogleTranslateProvider>
                               <BypassBlocksProvider>
-                                {children}
+                                <MaterialYouProvider>
+                                  {children}
+                                </MaterialYouProvider>
                               </BypassBlocksProvider>
                             </PreferGoogleTranslateProvider>
                           </KawaiiProvider>

@@ -5,6 +5,10 @@ export function getIsReducedMotionEnabled(): boolean {
   throw new NotImplementedError()
 }
 
+export function getMaterialYouAccentColors(): Record<string, string> {
+  return {}
+}
+
 /**
  * Set whether the app's audio should mix with other apps' audio. Will also resume background music playback when `false`
  * if it was previously playing.

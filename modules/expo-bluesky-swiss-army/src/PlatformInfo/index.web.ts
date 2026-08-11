@@ -15,3 +15,7 @@ export function setAudioActive(active: boolean): void {
 export function setAudioCategory(audioCategory: AudioCategory): void {
   throw new NotImplementedError({audioCategory})
 }
+
+export function getMaterialYouAccentColors(): Record<string, string> {
+  return {}
+}

@@ -126,6 +126,7 @@ const schema = z.object({
   kawaii: z.boolean().optional(),
   preferGoogleTranslate: z.boolean().optional(),
   bypassBlocks: z.boolean().optional(),
+  materialYou: z.boolean().optional(),
   hasCheckedForStarterPack: z.boolean().optional(),
   subtitlesEnabled: z.boolean().optional(),
   /** @deprecated */
@@ -177,6 +178,7 @@ export const defaults: Schema = {
   kawaii: false,
   preferGoogleTranslate: false,
   bypassBlocks: false,
+  materialYou: false,
   hasCheckedForStarterPack: false,
   subtitlesEnabled: true,
   trendingDisabled: false,
