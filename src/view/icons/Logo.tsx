@@ -36,6 +36,7 @@ export const Logo = forwardRef(function LogoImpl(props: Props, ref) {
 
   if (logoVariant !== 'default') {
     const isJapanLogo = logoVariant === 'japan'
+    const height = isJapanLogo ? size : size * 1.8
     return (
       <Image
         source={
@@ -48,7 +49,7 @@ export const Logo = forwardRef(function LogoImpl(props: Props, ref) {
         accessibilityLabel="Bluesky"
         accessibilityHint=""
         accessibilityIgnoresInvertColors
-        style={[{height: size, aspectRatio: isJapanLogo ? 2 : 1.4}]}
+        style={[{height, aspectRatio: isJapanLogo ? 2 : 1.4}]}
       />
     )
   }
