@@ -33,6 +33,7 @@ export type CommonNavigatorParams = {
   ProfileFollowers: {name: string}
   ProfileFollows: {name: string}
   ProfileKnownFollowers: {name: string}
+  ProfileBlocks: {name: string}
   ProfileSearch: {name: string} & SearchParams
   ProfileList: {name: string; rkey: string}
   PostThread: {name: string; rkey: string}

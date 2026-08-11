@@ -93,6 +93,7 @@ import {PostLikedByScreen} from '#/screens/Post/PostLikedBy'
 import {PostQuotesScreen} from '#/screens/Post/PostQuotes'
 import {PostRepostedByScreen} from '#/screens/Post/PostRepostedBy'
 import {ProfileKnownFollowersScreen} from '#/screens/Profile/KnownFollowers'
+import {ProfileBlocksScreen} from '#/screens/Profile/ProfileBlocks'
 import {ProfileFollowersScreen} from '#/screens/Profile/ProfileFollowers'
 import {ProfileFollowsScreen} from '#/screens/Profile/ProfileFollows'
 import {ProfileLabelerLikedByScreen} from '#/screens/Profile/ProfileLabelerLikedBy'
@@ -231,6 +232,13 @@ function commonScreens(Stack: typeof Flat, unreadCountLabel?: string) {
         getComponent={() => ProfileFollowersScreen}
         options={({route}) => ({
           title: title(msg`People following @${route.params.name}`),
+        })}
+      />
+      <Stack.Screen
+        name="ProfileBlocks"
+        getComponent={() => ProfileBlocksScreen}
+        options={({route}) => ({
+          title: title(msg`People blocked by @${route.params.name}`),
         })}
       />
       <Stack.Screen

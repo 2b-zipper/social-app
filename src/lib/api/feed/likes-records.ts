@@ -1,6 +1,10 @@
-import {type AppBskyFeedDefs, AppBskyFeedLike, AtpAgent} from '@atproto/api'
-import {type DidDocument, getPdsEndpoint} from '@atproto/common-web'
+import {
+  type AppBskyFeedDefs,
+  AppBskyFeedLike,
+  type AtpAgent,
+} from '@atproto/api'
 
+import {getRepoAgent} from '#/lib/api/repo-agent'
 import {logger} from '#/logger'
 import * as bsky from '#/types/bsky'
 import {type FeedAPI, type FeedAPIResponse} from './types'
@@ -23,12 +27,7 @@ export class LikesRecordsFeedAPI implements FeedAPI {
 
   private async getRepoAgent(): Promise<AtpAgent> {
     if (this.repoAgent) return this.repoAgent
-    const doc = await resolveDidDoc(this.actor)
-    const pds = doc ? getPdsEndpoint(doc) : null
-    if (!pds) {
-      throw new Error(`Could not resolve a PDS for ${this.actor}`)
-    }
-    this.repoAgent = new AtpAgent({service: pds})
+    this.repoAgent = await getRepoAgent(this.actor)
     return this.repoAgent
   }
 
@@ -91,28 +90,4 @@ export class LikesRecordsFeedAPI implements FeedAPI {
       feed,
     }
   }
-}
-
-async function resolveDidDoc(did: string): Promise<DidDocument | null> {
-  try {
-    if (did.startsWith('did:plc:')) {
-      const res = await fetch(`https://plc.directory/${did}`)
-      if (!res.ok) return null
-      return (await res.json()) as DidDocument
-    }
-    if (did.startsWith('did:web:')) {
-      const domain = did.slice('did:web:'.length)
-      if (domain.includes(':')) return null
-      const res = await fetch(
-        `https://${decodeURIComponent(domain)}/.well-known/did.json`,
-      )
-      if (!res.ok) return null
-      return (await res.json()) as DidDocument
-    }
-  } catch (err) {
-    logger.warn('LikesRecordsFeedAPI: failed to resolve DID doc', {
-      safeMessage: err,
-    })
-  }
-  return null
 }

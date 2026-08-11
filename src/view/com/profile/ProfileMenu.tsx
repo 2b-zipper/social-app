@@ -279,6 +279,10 @@ let ProfileMenu = ({
     navigation.navigate('ProfileSearch', {name: profile.handle})
   }, [navigation, profile.handle])
 
+  const onPressBlocks = useCallback(() => {
+    navigation.navigate('ProfileBlocks', {name: profile.handle})
+  }, [navigation, profile.handle])
+
   const verificationCreatePromptControl = Prompt.usePromptControl()
   const verificationRemovePromptControl = Prompt.usePromptControl()
   const currentAccountVerifications =
@@ -346,6 +350,17 @@ let ProfileMenu = ({
               </Menu.ItemText>
               <Menu.ItemIcon icon={SearchIcon} />
             </Menu.Item>
+            {!isSelf && (
+              <Menu.Item
+                testID="profileHeaderDropdownBlocksBtn"
+                label={l`See blocked accounts`}
+                onPress={onPressBlocks}>
+                <Menu.ItemText>
+                  <Trans>See blocked accounts</Trans>
+                </Menu.ItemText>
+                <Menu.ItemIcon icon={PersonXIcon} />
+              </Menu.Item>
+            )}
           </Menu.Group>
 
           {hasSession && (
