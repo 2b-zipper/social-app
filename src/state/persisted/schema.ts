@@ -125,6 +125,7 @@ const schema = z.object({
   disableAutoplay: z.boolean().optional(),
   kawaii: z.boolean().optional(),
   preferGoogleTranslate: z.boolean().optional(),
+  bypassBlocks: z.boolean().optional(),
   hasCheckedForStarterPack: z.boolean().optional(),
   subtitlesEnabled: z.boolean().optional(),
   /** @deprecated */
@@ -175,6 +176,7 @@ export const defaults: Schema = {
   disableAutoplay: PlatformInfo.getIsReducedMotionEnabled(),
   kawaii: false,
   preferGoogleTranslate: false,
+  bypassBlocks: false,
   hasCheckedForStarterPack: false,
   subtitlesEnabled: true,
   trendingDisabled: false,

@@ -20,11 +20,13 @@ import {
 } from '@tanstack/react-query'
 
 import {uploadBlob} from '#/lib/api'
+import {getPublicAgent} from '#/lib/api/public-agent'
 import {until} from '#/lib/async/until'
 import {useToggleMutationQueue} from '#/lib/hooks/useToggleMutationQueue'
 import {updateProfileShadow} from '#/state/cache/profile-shadow'
 import {type Shadow} from '#/state/cache/types'
 import {type ImageMeta} from '#/state/gallery'
+import * as persisted from '#/state/persisted'
 import {STALE} from '#/state/queries'
 import {resetProfilePostsQueries} from '#/state/queries/post-feed'
 import {RQKEY as PROFILE_FOLLOWS_RQKEY} from '#/state/queries/profile-follows'
@@ -80,7 +82,18 @@ export function useProfileQuery({
     queryKey: RQKEY(did ?? ''),
     queryFn: async () => {
       const res = await agent.getProfile({actor: did ?? ''})
-      return res.data
+      const viewer = res.data.viewer
+      const isBlocked =
+        viewer?.blocking || viewer?.blockedBy || viewer?.blockingByList
+      if (!isBlocked || !persisted.get('bypassBlocks')) {
+        return res.data
+      }
+      try {
+        const publicRes = await getPublicAgent().getProfile({actor: did ?? ''})
+        return {...publicRes.data, viewer}
+      } catch {
+        return res.data
+      }
     },
     placeholderData: () => {
       if (!did) return

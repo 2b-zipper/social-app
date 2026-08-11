@@ -12,6 +12,7 @@ import {
 } from '#/lib/routes/types'
 import {logger} from '#/logger'
 import {useIsBirthdateUpdateAllowed} from '#/state/birthdate'
+import {useBypassBlocks, useSetBypassBlocks} from '#/state/preferences'
 import {useRemoveLabelersMutation} from '#/state/queries/labeler'
 import {
   useMyLabelersQuery,
@@ -161,6 +162,8 @@ export function ModerationScreenInner({
   const t = useTheme()
   const {gtMobile} = useBreakpoints()
   const {mutedWordsDialogControl} = useGlobalDialogsControlContext()
+  const bypassBlocks = useBypassBlocks()
+  const setBypassBlocks = useSetBypassBlocks()
   const {
     isLoading: isLabelersLoading,
     data: labelers,
@@ -349,6 +352,42 @@ export function ModerationScreenInner({
             />
           )}
         </Link>
+        <Divider />
+        <View
+          style={[
+            a.py_lg,
+            a.px_lg,
+            a.flex_row,
+            a.align_center,
+            a.justify_between,
+            a.gap_md,
+          ]}>
+          <View style={[a.flex_1]}>
+            <Text style={[a.font_semi_bold, t.atoms.text_contrast_high]}>
+              <Trans>Show blocked content</Trans>
+            </Text>
+            <Text
+              style={[
+                a.text_sm,
+                a.leading_snug,
+                a.pt_xs,
+                t.atoms.text_contrast_medium,
+              ]}>
+              <Trans>
+                View posts from accounts you have blocked, or that have blocked
+                you, as they appear logged out. They still cannot interact with
+                you.
+              </Trans>
+            </Text>
+          </View>
+          <Toggle.Item
+            name="bypassBlocks"
+            label={_(msg`Toggle to show blocked content`)}
+            value={bypassBlocks}
+            onChange={setBypassBlocks}>
+            <Toggle.Switch />
+          </Toggle.Item>
+        </View>
       </View>
 
       <Text

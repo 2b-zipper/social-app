@@ -1,6 +1,10 @@
 import {useCallback, useMemo, useState} from 'react'
+import {AppBskyUnspeccedDefs} from '@atproto/api'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 
+import {getPublicAgent} from '#/lib/api/public-agent'
+import {markBypassedBlock} from '#/lib/moderation/bypassBlocks'
+import {useBypassBlocks} from '#/state/preferences'
 import {useModerationOpts} from '#/state/preferences/moderation-opts'
 import {useThreadPreferences} from '#/state/queries/preferences/useThreadPreferences'
 import {
@@ -39,6 +43,7 @@ export * from '#/state/queries/usePostThread/types'
 export function usePostThread({anchor}: {anchor?: string}) {
   const qc = useQueryClient()
   const agent = useAgent()
+  const bypassBlocks = useBypassBlocks()
   const {hasSession} = useSession()
   const {gtPhone} = useBreakpoints()
   const moderationOpts = useModerationOpts()
@@ -71,12 +76,37 @@ export function usePostThread({anchor}: {anchor?: string}) {
     enabled: isThreadPreferencesLoaded && !!anchor && !!moderationOpts,
     queryKey: postThreadQueryKey,
     async queryFn(ctx) {
-      const {data} = await agent.app.bsky.unspecced.getPostThreadV2({
+      const params = {
         anchor: anchor!,
         branchingFactor: view === 'linear' ? LINEAR_VIEW_BF : TREE_VIEW_BF,
         below,
         sort: sort,
-      })
+      }
+      let {data} = await agent.app.bsky.unspecced.getPostThreadV2(params)
+
+      if (
+        bypassBlocks &&
+        data.thread.some(item =>
+          AppBskyUnspeccedDefs.isThreadItemBlocked(item.value),
+        )
+      ) {
+        const publicRes =
+          await getPublicAgent().app.bsky.unspecced.getPostThreadV2(params)
+        data = {
+          ...publicRes.data,
+          thread: publicRes.data.thread.map(item =>
+            AppBskyUnspeccedDefs.isThreadItemPost(item.value)
+              ? {
+                  ...item,
+                  value: {
+                    ...item.value,
+                    post: markBypassedBlock(item.value.post),
+                  },
+                }
+              : item,
+          ),
+        }
+      }
 
       /*
        * Initialize `ctx.meta` to track if we know we have additional replies

@@ -4,6 +4,8 @@ import {
   type AtpAgent,
 } from '@atproto/api'
 
+import {withBlockBypass} from '#/lib/api/public-agent'
+import {markBypassedBlockFeed} from '#/lib/moderation/bypassBlocks'
 import {type FeedAPI, type FeedAPIResponse} from './types'
 
 export class AuthorFeedAPI implements FeedAPI {
@@ -27,8 +29,19 @@ export class AuthorFeedAPI implements FeedAPI {
     return params
   }
 
+  private async query(params: GetAuthorFeed.QueryParams) {
+    return withBlockBypass(
+      () => this.agent.getAuthorFeed(params),
+      async publicAgent => {
+        const res = await publicAgent.getAuthorFeed(params)
+        res.data.feed = markBypassedBlockFeed(res.data.feed)
+        return res
+      },
+    )
+  }
+
   async peekLatest(): Promise<AppBskyFeedDefs.FeedViewPost> {
-    const res = await this.agent.getAuthorFeed({
+    const res = await this.query({
       ...this.params,
       limit: 1,
     })
@@ -42,7 +55,7 @@ export class AuthorFeedAPI implements FeedAPI {
     cursor: string | undefined
     limit: number
   }): Promise<FeedAPIResponse> {
-    const res = await this.agent.getAuthorFeed({
+    const res = await this.query({
       ...this.params,
       cursor,
       limit,

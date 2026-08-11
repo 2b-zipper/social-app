@@ -12,6 +12,7 @@ import {useNavigation} from '@react-navigation/native'
 
 import {BACK_HITSLOP} from '#/lib/constants'
 import {useHaptics} from '#/lib/haptics'
+import {ignoreBlockUi} from '#/lib/moderation/bypassBlocks'
 import {type NavigationProp} from '#/lib/routes/types'
 import {type Shadow} from '#/state/cache/types'
 import {useSession} from '#/state/session'
@@ -124,7 +125,7 @@ let ProfileHeaderShell = ({
       ax.metric('live:card:open', {subject: profile.did, from: 'profile'})
       liveStatusControl.open()
     } else {
-      const modui = moderation.ui('avatar')
+      const modui = ignoreBlockUi(moderation.ui('avatar'))
       const avatar = profile.avatar
       const type = profile.associated?.labeler ? 'rect-avi' : 'circle-avi'
       if (avatar && !(modui.blur && modui.noOverride)) {
@@ -143,7 +144,7 @@ let ProfileHeaderShell = ({
   ])
 
   const onPressBanner = useCallback(() => {
-    const modui = moderation.ui('banner')
+    const modui = ignoreBlockUi(moderation.ui('banner'))
     const banner = profile.banner
     if (banner && !(modui.blur && modui.noOverride)) {
       _openLightbox(banner, bannerRef, 'image')
@@ -217,7 +218,7 @@ let ProfileHeaderShell = ({
             <UserBanner
               type={profile.associated?.labeler ? 'labeler' : 'default'}
               banner={profile.banner}
-              moderation={moderation.ui('banner')}
+              moderation={ignoreBlockUi(moderation.ui('banner'))}
             />
           )}
         </GrowableBanner>
@@ -275,7 +276,7 @@ let ProfileHeaderShell = ({
                 type={profile.associated?.labeler ? 'labeler' : 'user'}
                 size={live.isActive ? 88 : 90}
                 avatar={profile.avatar}
-                moderation={moderation.ui('avatar')}
+                moderation={ignoreBlockUi(moderation.ui('avatar'))}
                 noBorder
               />
               {live.isActive && <LiveIndicator size="large" />}

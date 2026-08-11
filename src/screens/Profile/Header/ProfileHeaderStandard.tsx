@@ -12,9 +12,11 @@ import {useLingui} from '@lingui/react'
 import {Trans} from '@lingui/react/macro'
 
 import {useHaptics} from '#/lib/haptics'
+import {ignoreBlockUi} from '#/lib/moderation/bypassBlocks'
 import {sanitizeDisplayName} from '#/lib/strings/display-names'
 import {logger} from '#/logger'
 import {type Shadow, useProfileShadow} from '#/state/cache/profile-shadow'
+import {useBypassBlocks} from '#/state/preferences'
 import {
   useProfileBlockMutationQueue,
   useProfileFollowMutationQueue,
@@ -67,6 +69,7 @@ let ProfileHeaderStandard = ({
     useProfileShadow<AppBskyActorDefs.ProfileViewDetailed>(profileUnshadowed)
   const {currentAccount} = useSession()
   const {_} = useLingui()
+  const bypassBlocks = useBypassBlocks()
   const moderation = useMemo(
     () => moderateProfile(profile, moderationOpts),
     [profile, moderationOpts],
@@ -77,9 +80,10 @@ let ProfileHeaderStandard = ({
   const [hasSeenAllSuggestedFollows, setHasSeenAllSuggestedFollows] =
     useState(false)
   const isBlockedUser =
-    profile.viewer?.blocking ||
-    profile.viewer?.blockedBy ||
-    profile.viewer?.blockingByList
+    !bypassBlocks &&
+    (profile.viewer?.blocking ||
+      profile.viewer?.blockedBy ||
+      profile.viewer?.blockingByList)
 
   const unblockAccount = async () => {
     try {
@@ -143,7 +147,8 @@ let ProfileHeaderStandard = ({
           {!isPlaceholderProfile && !isBlockedUser && (
             <View style={a.gap_md}>
               <ProfileHeaderMetrics profile={profile} />
-              {descriptionRT && !moderation.ui('profileView').blur ? (
+              {descriptionRT &&
+              !ignoreBlockUi(moderation.ui('profileView')).blur ? (
                 <View pointerEvents="auto">
                   <RichText
                     testID="profileHeaderDescription"

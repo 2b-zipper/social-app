@@ -9,6 +9,7 @@ import {
   useInfiniteQuery,
 } from '@tanstack/react-query'
 
+import {withBlockBypass} from '#/lib/api/public-agent'
 import {useAgent} from '#/state/session'
 import {useAnalytics} from '#/analytics'
 
@@ -46,12 +47,16 @@ export function useProfileFollowersQuery(
   >({
     queryKey: RQKEY(did || '', sortParam),
     async queryFn({pageParam}: {pageParam: RQPageParam}) {
-      const res = await agent.app.bsky.graph.getFollowers({
+      const params = {
         actor: did || '',
         limit: PAGE_SIZE,
         cursor: pageParam,
         sort: sortParam,
-      })
+      }
+      const res = await withBlockBypass(
+        () => agent.app.bsky.graph.getFollowers(params),
+        publicAgent => publicAgent.app.bsky.graph.getFollowers(params),
+      )
       return res.data
     },
     initialPageParam: undefined,
