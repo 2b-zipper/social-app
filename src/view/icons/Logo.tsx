@@ -15,6 +15,13 @@ import {flatten, useTheme} from '#/alf'
 
 const ratio = 57 / 64
 
+const KAWAII_SCALE = 1.8
+
+export const KAWAII_HEADER_EXTRA_HEIGHT = Math.max(
+  0,
+  30 * KAWAII_SCALE + 4 - 48,
+)
+
 type Props = {
   allowVariants?: boolean
   fill?: PathProps['fill']
@@ -36,7 +43,7 @@ export const Logo = forwardRef(function LogoImpl(props: Props, ref) {
 
   if (logoVariant !== 'default') {
     const isJapanLogo = logoVariant === 'japan'
-    const height = isJapanLogo ? size : size * 1.8
+    const height = isJapanLogo ? size : size * KAWAII_SCALE
     return (
       <Image
         source={
