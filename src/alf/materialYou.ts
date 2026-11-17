@@ -1,7 +1,8 @@
-import {createThemes, type Palette} from '@bsky.app/alf'
+import {type Palette} from '@bsky.app/alf'
 
 import {PlatformInfo} from '../../modules/expo-bluesky-swiss-army'
 import {
+  createAppThemes,
   M3_EXPRESSIVE_PALETTE,
   M3_EXPRESSIVE_SUBDUED_PALETTE,
   type themes,
@@ -90,17 +91,8 @@ export function getMaterialYouThemes(): typeof themes | undefined {
   const accent = PlatformInfo.getMaterialYouAccentColors()
   if (!accent || Object.keys(accent).length === 0) return undefined
 
-  const built = createThemes({
+  return createAppThemes({
     defaultPalette: applyAccent(M3_EXPRESSIVE_PALETTE, accent, false),
     subduedPalette: applyAccent(M3_EXPRESSIVE_SUBDUED_PALETTE, accent, true),
   })
-
-  return {
-    lightPalette: built.light.palette,
-    darkPalette: built.dark.palette,
-    dimPalette: built.dim.palette,
-    light: built.light,
-    dark: built.dark,
-    dim: built.dim,
-  }
 }

@@ -6,6 +6,14 @@ import {PublicationCard} from '#/components/atmosphere/SiteStandard/Publication'
 import {type app} from '#/lexicons'
 import {FeaturedPublications} from '../FeaturedPublications'
 
+jest.mock('react-native-reanimated', () => ({
+  __esModule: true,
+  default: {createAnimatedComponent: <T,>(component: T) => component},
+  interpolate: () => 0,
+  useAnimatedStyle: () => ({}),
+  useSharedValue: (value: number) => ({get: () => value, set: () => {}}),
+  withSpring: (value: number) => value,
+}))
 jest.mock('@lingui/react', () => ({
   useLingui: () => ({_: (value: {message: string}) => value.message}),
 }))

@@ -2,16 +2,22 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useState,
 } from 'react'
 import {type StyleProp, View, type ViewStyle} from 'react-native'
-import Animated, {Easing, LinearTransition} from 'react-native-reanimated'
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated'
 
 import {useHaptics} from '#/lib/haptics'
 import {useNonReactiveCallback} from '#/lib/hooks/useNonReactiveCallback'
-import {atoms as a, native, platform, useTheme} from '#/alf'
+import {atoms as a, useTheme} from '#/alf'
+import * as m3e from '#/alf/m3e'
 import {
   Button,
   type ButtonProps,
@@ -236,7 +242,7 @@ export function ItemText({style, ...props}: ButtonTextProps) {
         a.font_medium,
         a.px_xs,
         ctx.active
-          ? [a.font_semi_bold, {color: t.palette.primary_800}]
+          ? [a.font_semi_bold, {color: m3e.colors(t).onSecondaryContainer}]
           : ctx.focused || ctx.hovered || ctx.pressed
             ? t.atoms.text_contrast_medium
             : t.atoms.text_contrast_low,
@@ -248,10 +254,21 @@ export function ItemText({style, ...props}: ButtonTextProps) {
 
 function Slider({x, width}: {x: number; width: number}) {
   const t = useTheme()
+  const left = useSharedValue(x)
+  const size = useSharedValue(width)
+
+  useEffect(() => {
+    left.set(withSpring(x, m3e.motion.defaultSpatial))
+    size.set(withSpring(width, m3e.motion.defaultSpatial))
+  }, [x, width, left, size])
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    width: size.get(),
+    transform: [{translateX: left.get()}],
+  }))
 
   return (
     <Animated.View
-      layout={native(LinearTransition.easing(Easing.out(Easing.exp)))}
       style={[
         a.absolute,
         a.rounded_full,
@@ -260,27 +277,9 @@ function Slider({x, width}: {x: number; width: number}) {
           top: 4,
           bottom: 4,
           left: 0,
-          width,
-          backgroundColor: t.palette.primary_100,
+          backgroundColor: m3e.colors(t).secondaryContainer,
         },
-        // TODO: new arch supports boxShadow on native
-        // in the meantime this is an attempt to get close
-        platform({
-          web: {
-            boxShadow: '0px 2px 4px 0px #0000000D',
-          },
-          ios: {
-            shadowColor: '#000',
-            shadowOffset: {width: 0, height: 2},
-            shadowOpacity: 0x0d / 0xff,
-            shadowRadius: 4,
-          },
-          android: {elevation: 0.25},
-        }),
-        platform({
-          native: [{left: x}],
-          web: [{transform: [{translateX: x}]}, a.transition_transform],
-        }),
+        animatedStyle,
       ]}
     />
   )

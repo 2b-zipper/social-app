@@ -1,23 +1,28 @@
-import {type JSX, useCallback} from 'react'
-import {type GestureResponderEvent, View} from 'react-native'
-import Animated from 'react-native-reanimated'
+import {useEffect, useState} from 'react'
+import {type GestureResponderEvent, Pressable, View} from 'react-native'
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {plural} from '@lingui/core/macro'
 import {Trans, useLingui} from '@lingui/react/macro'
 import {type BottomTabBarProps} from '@react-navigation/bottom-tabs'
 import {StackActions} from '@react-navigation/native'
 
-import {PressableScale} from '#/lib/custom-animations/PressableScale'
 import {BOTTOM_BAR_AVI} from '#/lib/demo'
 import {useHaptics} from '#/lib/haptics'
 import {useDedupe} from '#/lib/hooks/useDedupe'
 import {useMinimalShellFooterTransform} from '#/lib/hooks/useMinimalShellTransform'
 import {useNavigationTabState} from '#/lib/hooks/useNavigationTabState'
-import {clamp} from '#/lib/numbers'
 import {getTabState, TabState} from '#/lib/routes/helpers'
 import {type SharedNavTab, TAB_TO_NAV_ITEM} from '#/lib/routes/tab-to-nav-item'
 import {emitSoftReset} from '#/state/events'
 import {useHomeBadge} from '#/state/home-badge'
+import {useHideTabLabels} from '#/state/preferences'
 import {useUnreadMessageCount} from '#/state/queries/messages/list-conversations'
 import {useUpdateAllRead} from '#/state/queries/messages/update-all-read'
 import {useUnreadNotifications} from '#/state/queries/notifications/unread'
@@ -30,6 +35,7 @@ import {UserAvatar} from '#/view/com/util/UserAvatar'
 import {Logo} from '#/view/icons/Logo'
 import {Logotype} from '#/view/icons/Logotype'
 import {atoms as a, useTheme} from '#/alf'
+import * as m3e from '#/alf/m3e'
 import {Button, ButtonText} from '#/components/Button'
 import {useDialogControl} from '#/components/Dialog'
 import {SwitchAccountDialog} from '#/components/dialogs/SwitchAccount'
@@ -38,6 +44,7 @@ import {
   Bell_Stroke2_Corner0_Rounded as Bell,
 } from '#/components/icons/Bell'
 import {CircleCheck_Stroke2_Corner0_Rounded as CircleCheckIcon} from '#/components/icons/CircleCheck'
+import {type Props as SVGIconProps} from '#/components/icons/common'
 import {
   HomeOpen_Filled_Corner0_Rounded as HomeFilled,
   HomeOpen_Stoke2_Corner0_Rounded as Home,
@@ -59,14 +66,19 @@ import {useAnalytics} from '#/analytics'
 import {isFollowingV2HomeDotEnabled} from '#/features/followingV2/eligibility'
 import {useActorStatus} from '#/features/liveNow'
 import {useDemoMode} from '#/storage/hooks/demo-mode'
-import {styles} from './BottomBarStyles'
+import {navBarBottomInset, styles, useNavBarHeight} from './BottomBarStyles'
+
+const ICON_SIZE = 24
+const AVATAR_SIZE = 26
 
 export function BottomBar({navigation}: BottomTabBarProps) {
   const {hasSession, currentAccount} = useSession()
   const t = useTheme()
+  const c = m3e.colors(t)
   const {t: l} = useLingui()
   const ax = useAnalytics()
   const safeAreaInsets = useSafeAreaInsets()
+  const navBarHeight = useNavBarHeight()
   const {footerHeight} = useShellLayout()
   const {isAtHome, isAtSearch, isAtNotifications, isAtMyProfile, isAtMessages} =
     useNavigationTabState()
@@ -82,81 +94,80 @@ export function BottomBar({navigation}: BottomTabBarProps) {
   const accountSwitchControl = useDialogControl()
   const messagesMenuControl = Menu.useMenuControl()
   const haptics = useHaptics()
-  const iconWidth = 28
+  const [demoMode] = useDemoMode()
+  const {isActive: live} = useActorStatus(profile)
+  const isLabeler = profile?.associated?.labeler
 
-  const showSignIn = useCallback(() => {
+  const currentTab: SharedNavTab | null = isAtHome
+    ? 'Home'
+    : isAtSearch
+      ? 'Search'
+      : isAtMessages
+        ? 'Messages'
+        : isAtNotifications
+          ? 'Notifications'
+          : isAtMyProfile
+            ? 'MyProfile'
+            : null
+
+  const [pendingTab, setPendingTab] = useState<SharedNavTab | null>(null)
+  const [prevTab, setPrevTab] = useState(currentTab)
+  if (prevTab !== currentTab) {
+    setPrevTab(currentTab)
+    setPendingTab(null)
+  }
+  const activeTab = pendingTab ?? currentTab
+
+  const showSignIn = () => {
     closeAllActiveElements()
     requestSwitchToAccount({requestedAccount: 'none'})
-  }, [requestSwitchToAccount, closeAllActiveElements])
+  }
 
-  const showCreateAccount = useCallback(() => {
+  const showCreateAccount = () => {
     closeAllActiveElements()
     requestSwitchToAccount({requestedAccount: 'new'})
-    // setShowLoggedOut(true)
-  }, [requestSwitchToAccount, closeAllActiveElements])
+  }
 
-  const onPressTab = useCallback(
-    (tab: SharedNavTab) => {
-      ax.metric('nav:click', {
-        item: TAB_TO_NAV_ITEM[tab],
-        surface: 'bottomBar',
-      })
-      const state = navigation.getState()
-      const tabState = getTabState(state, tab)
-      if (tabState === TabState.InsideAtRoot) {
-        emitSoftReset()
-      } else if (tabState === TabState.Inside) {
-        // find the correct navigator in which to pop-to-top
+  const onPressTab = (tab: SharedNavTab) => {
+    ax.metric('nav:click', {
+      item: TAB_TO_NAV_ITEM[tab],
+      surface: 'bottomBar',
+    })
+    const state = navigation.getState()
+    const tabState = getTabState(state, tab)
+    if (tabState === TabState.InsideAtRoot) {
+      emitSoftReset()
+      return
+    }
+    if (tabState === TabState.Outside) setPendingTab(tab)
+    // Let the indicator start animating before the next screen blocks the JS thread
+    requestAnimationFrame(() => {
+      if (tabState === TabState.Inside) {
         const target = state.routes.find(route => route.name === `${tab}Tab`)
           ?.state?.key
         dedupe(() => {
           if (target) {
-            // if we found it, trigger pop-to-top
-            navigation.dispatch({
-              ...StackActions.popToTop(),
-              target,
-            })
+            navigation.dispatch({...StackActions.popToTop(), target})
           } else {
-            // fallback: reset navigation
-            navigation.reset({
-              index: 0,
-              routes: [{name: `${tab}Tab`}],
-            })
+            navigation.reset({index: 0, routes: [{name: `${tab}Tab`}]})
           }
         })
       } else {
         dedupe(() => navigation.navigate(`${tab}Tab`))
       }
-    },
-    [navigation, dedupe, ax],
-  )
-  const onPressHome = useCallback(() => onPressTab('Home'), [onPressTab])
-  const onPressSearch = useCallback(() => onPressTab('Search'), [onPressTab])
-  const onPressNotifications = useCallback(
-    () => onPressTab('Notifications'),
-    [onPressTab],
-  )
-  const onPressProfile = useCallback(() => {
-    onPressTab('MyProfile')
-  }, [onPressTab])
-  const onPressMessages = useCallback(() => {
-    onPressTab('Messages')
-  }, [onPressTab])
+    })
+  }
 
-  const onLongPressProfile = useCallback(() => {
+  const onLongPressProfile = () => {
     haptics.longPress()
     accountSwitchControl.open()
-  }, [accountSwitchControl, haptics])
+  }
 
-  const onLongPressMessages = useCallback(() => {
+  const onLongPressMessages = () => {
     if (aa.flags.chatDisabled) return
     haptics.longPress()
     messagesMenuControl.open()
-  }, [aa.flags.chatDisabled, messagesMenuControl, haptics])
-
-  const [demoMode] = useDemoMode()
-  const {isActive: live} = useActorStatus(profile)
-  const isLabeler = profile?.associated?.labeler
+  }
 
   return (
     <>
@@ -165,107 +176,50 @@ export function BottomBar({navigation}: BottomTabBarProps) {
       <Animated.View
         style={[
           styles.bottomBar,
-          t.atoms.bg_contrast_50,
-          t.atoms.shadow_md,
           {
-            left: 14,
-            right: 14,
-            bottom: clamp(safeAreaInsets.bottom, 12, 34),
-            borderRadius: 999,
-            borderWidth: 1,
-            borderColor: t.palette.contrast_100,
-            paddingVertical: 6,
-            elevation: 12,
+            backgroundColor: c.surfaceContainer,
+            paddingBottom: navBarBottomInset(safeAreaInsets.bottom),
           },
           footerMinimalShellTransform,
         ]}
         onLayout={e => {
-          footerHeight.set(
-            e.nativeEvent.layout.height + clamp(safeAreaInsets.bottom, 12, 34),
-          )
+          footerHeight.set(e.nativeEvent.layout.height)
         }}>
         {hasSession ? (
-          <>
-            <Btn
+          <View
+            style={[styles.items, {height: navBarHeight}]}
+            accessibilityRole="tablist">
+            <NavBarItem
               testID="bottomBarHomeBtn"
-              active={isAtHome}
-              icon={
-                isAtHome ? (
-                  <HomeFilled
-                    width={iconWidth + 1}
-                    style={[
-                      styles.ctrlIcon,
-                      {color: t.palette.primary_700},
-                      styles.homeIcon,
-                    ]}
-                  />
-                ) : (
-                  <Home
-                    width={iconWidth + 1}
-                    style={[styles.ctrlIcon, t.atoms.text, styles.homeIcon]}
-                  />
-                )
-              }
+              active={activeTab === 'Home'}
+              icon={Home}
+              activeIcon={HomeFilled}
+              label={l`Home`}
               hasNew={hasHomeBadge && isFollowingV2HomeDotEnabled(ax)}
-              onPress={onPressHome}
-              accessibilityRole="tab"
-              accessibilityLabel={l`Home`}
+              onPress={() => onPressTab('Home')}
               accessibilityHint=""
             />
-            <Btn
-              active={isAtSearch}
-              icon={
-                isAtSearch ? (
-                  <MagnifyingGlassFilled
-                    width={iconWidth + 2}
-                    style={[
-                      styles.ctrlIcon,
-                      {color: t.palette.primary_700},
-                      styles.searchIcon,
-                    ]}
-                  />
-                ) : (
-                  <MagnifyingGlass
-                    testID="bottomBarSearchBtn"
-                    width={iconWidth + 2}
-                    style={[styles.ctrlIcon, t.atoms.text, styles.searchIcon]}
-                  />
-                )
-              }
-              onPress={onPressSearch}
-              accessibilityRole="search"
-              accessibilityLabel={l`Search`}
+            <NavBarItem
+              testID="bottomBarSearchBtn"
+              active={activeTab === 'Search'}
+              icon={MagnifyingGlass}
+              activeIcon={MagnifyingGlassFilled}
+              label={l`Search`}
+              onPress={() => onPressTab('Search')}
               accessibilityHint=""
             />
-            <Btn
+            <NavBarItem
               testID="bottomBarMessagesBtn"
-              active={isAtMessages}
-              icon={
-                isAtMessages ? (
-                  <MessageFilled
-                    width={iconWidth - 1}
-                    style={[
-                      styles.ctrlIcon,
-                      {color: t.palette.primary_700},
-                      styles.feedsIcon,
-                    ]}
-                  />
-                ) : (
-                  <Message
-                    width={iconWidth - 1}
-                    style={[styles.ctrlIcon, t.atoms.text, styles.feedsIcon]}
-                  />
-                )
-              }
-              onPress={onPressMessages}
+              active={activeTab === 'Messages'}
+              icon={Message}
+              activeIcon={MessageFilled}
+              label={l`Chat`}
+              onPress={() => onPressTab('Messages')}
               onLongPress={onLongPressMessages}
-              notificationCount={
+              count={
                 aa.flags.chatDisabled ? undefined : numUnreadMessages.numUnread
               }
               hasNew={aa.flags.chatDisabled ? false : numUnreadMessages.hasNew}
-              accessible={true}
-              accessibilityRole="tab"
-              accessibilityLabel={l`Chat`}
               accessibilityHint={
                 !aa.flags.chatDisabled && numUnreadMessages.count > 0
                   ? numUnreadMessages.numUnread?.includes('+')
@@ -283,31 +237,14 @@ export function BottomBar({navigation}: BottomTabBarProps) {
                   : ''
               }
             />
-            <Btn
+            <NavBarItem
               testID="bottomBarNotificationsBtn"
-              active={isAtNotifications}
-              icon={
-                isAtNotifications ? (
-                  <BellFilled
-                    width={iconWidth}
-                    style={[
-                      styles.ctrlIcon,
-                      {color: t.palette.primary_700},
-                      styles.bellIcon,
-                    ]}
-                  />
-                ) : (
-                  <Bell
-                    width={iconWidth}
-                    style={[styles.ctrlIcon, t.atoms.text, styles.bellIcon]}
-                  />
-                )
-              }
-              onPress={onPressNotifications}
-              notificationCount={numUnreadNotifications}
-              accessible={true}
-              accessibilityRole="tab"
-              accessibilityLabel={l`Notifications`}
+              active={activeTab === 'Notifications'}
+              icon={Bell}
+              activeIcon={BellFilled}
+              label={l`Notifications`}
+              onPress={() => onPressTab('Notifications')}
+              count={numUnreadNotifications}
               accessibilityHint={
                 numUnreadNotifications === ''
                   ? ''
@@ -319,164 +256,210 @@ export function BottomBar({navigation}: BottomTabBarProps) {
                     })
               }
             />
-            <Btn
+            <NavBarItem
               testID="bottomBarProfileBtn"
-              active={isAtMyProfile}
-              icon={
-                <View style={styles.ctrlIconSizingWrapper}>
-                  <View
-                    style={[
-                      styles.ctrlIcon,
-                      isLabeler ? styles.profileIconSquare : styles.profileIcon,
-                      isAtMyProfile && [
-                        isLabeler ? styles.onProfileSquare : styles.onProfile,
-                        {
-                          borderColor: t.palette.primary_600,
-                          borderWidth: live ? 0 : 1.5,
-                        },
-                      ],
-                    ]}>
-                    <UserAvatar
-                      avatar={demoMode ? BOTTOM_BAR_AVI : profile?.avatar}
-                      size={iconWidth - (isAtMyProfile ? 3 : 2)}
-                      // See https://github.com/bluesky-social/social-app/pull/1801:
-                      usePlainRNImage={true}
-                      type={profile?.associated?.labeler ? 'labeler' : 'user'}
-                      live={live}
-                      hideLiveBadge
-                    />
-                  </View>
+              active={activeTab === 'MyProfile'}
+              renderIcon={active => (
+                <View
+                  style={[
+                    {
+                      padding: 1.5,
+                      borderWidth: live ? 0 : 1.5,
+                      borderRadius: isLabeler ? 6 : AVATAR_SIZE,
+                      borderColor: active
+                        ? c.onSecondaryContainer
+                        : 'transparent',
+                    },
+                  ]}>
+                  <UserAvatar
+                    avatar={demoMode ? BOTTOM_BAR_AVI : profile?.avatar}
+                    size={AVATAR_SIZE - 6}
+                    // See https://github.com/bluesky-social/social-app/pull/1801:
+                    usePlainRNImage={true}
+                    type={isLabeler ? 'labeler' : 'user'}
+                    live={live}
+                    hideLiveBadge
+                  />
                 </View>
-              }
-              onPress={onPressProfile}
+              )}
+              label={l`Profile`}
+              onPress={() => onPressTab('MyProfile')}
               onLongPress={onLongPressProfile}
-              accessibilityRole="tab"
-              accessibilityLabel={l`Profile`}
               accessibilityHint=""
             />
-          </>
+          </View>
         ) : (
-          <>
-            <View
-              style={{
-                width: '100%',
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingTop: 6,
-                paddingBottom: 6,
-                paddingLeft: 14,
-                paddingRight: 6,
-                gap: 8,
-              }}>
-              <View
-                style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
-                <Logo allowVariants={false} width={28} />
-                <View style={{paddingTop: 4}}>
-                  <Logotype width={80} fill={t.atoms.text.color} />
-                </View>
-              </View>
-
-              <View style={[a.flex_row, a.flex_wrap, a.gap_sm]}>
-                <Button
-                  onPress={showCreateAccount}
-                  label={l`Create account`}
-                  size="small"
-                  color="primary">
-                  <ButtonText>
-                    <Trans>Create account</Trans>
-                  </ButtonText>
-                </Button>
-                <Button
-                  onPress={showSignIn}
-                  label={l`Sign in`}
-                  size="small"
-                  color="secondary">
-                  <ButtonText>
-                    <Trans>Sign in</Trans>
-                  </ButtonText>
-                </Button>
+          <View
+            style={[
+              a.flex_row,
+              a.align_center,
+              a.justify_between,
+              a.gap_sm,
+              {
+                minHeight: 64,
+                paddingVertical: 8,
+                paddingLeft: 16,
+                paddingRight: 12,
+              },
+            ]}>
+            <View style={[a.flex_row, a.align_center, a.gap_sm]}>
+              <Logo allowVariants={false} width={28} />
+              <View style={{paddingTop: 4}}>
+                <Logotype width={80} fill={t.atoms.text.color} />
               </View>
             </View>
-          </>
+
+            <View style={[a.flex_row, a.flex_wrap, a.gap_sm]}>
+              <Button
+                onPress={showCreateAccount}
+                label={l`Create account`}
+                size="small"
+                color="primary">
+                <ButtonText>
+                  <Trans>Create account</Trans>
+                </ButtonText>
+              </Button>
+              <Button
+                onPress={showSignIn}
+                label={l`Sign in`}
+                size="small"
+                color="secondary">
+                <ButtonText>
+                  <Trans>Sign in</Trans>
+                </ButtonText>
+              </Button>
+            </View>
+          </View>
         )}
       </Animated.View>
     </>
   )
 }
 
-interface BtnProps extends Pick<
-  React.ComponentProps<typeof PressableScale>,
-  | 'accessible'
-  | 'accessibilityRole'
-  | 'accessibilityHint'
-  | 'accessibilityLabel'
-> {
-  testID?: string
-  active?: boolean
-  icon: JSX.Element
-  notificationCount?: string
-  hasNew?: boolean
-  onPress?: (event: GestureResponderEvent) => void
-  onLongPress?: (event: GestureResponderEvent) => void
-}
-
-function Btn({
+function NavBarItem({
   testID,
   active,
-  icon,
-  hasNew,
-  notificationCount,
+  icon: Icon,
+  activeIcon: ActiveIcon,
+  renderIcon,
+  label,
+  count,
+  hasNew = false,
   onPress,
   onLongPress,
-  accessible,
   accessibilityHint,
-  accessibilityLabel,
-}: BtnProps) {
+}: {
+  testID: string
+  active: boolean
+  icon?: React.ComponentType<SVGIconProps>
+  activeIcon?: React.ComponentType<SVGIconProps>
+  renderIcon?: (active: boolean) => React.ReactNode
+  label: string
+  count?: string
+  hasNew?: boolean
+  onPress: () => void
+  onLongPress?: (event: GestureResponderEvent) => void
+  accessibilityHint: string
+}) {
   const t = useTheme()
+  const c = m3e.colors(t)
+  const hideLabel = useHideTabLabels()
+  const selection = useSharedValue(active ? 1 : 0)
+  const interaction = useSharedValue(0)
+
+  useEffect(() => {
+    selection.set(withSpring(active ? 1 : 0, m3e.motion.fastSpatial))
+  }, [active, selection])
+
+  const indicatorStyle = useAnimatedStyle(() => {
+    const value = selection.get()
+    return {
+      opacity: interpolate(value, [0, 0.4], [0, 1], Extrapolation.CLAMP),
+      transform: [{scaleX: interpolate(value, [0, 1], [0.3, 1])}],
+    }
+  })
+
+  const stateLayerStyle = useAnimatedStyle(() => ({
+    opacity: interaction.get(),
+  }))
+
+  const setInteraction = (opacity: number, isEntering: boolean) => {
+    interaction.set(
+      withSpring(
+        opacity,
+        isEntering ? m3e.motion.fastEffects : m3e.motion.defaultEffects,
+      ),
+    )
+  }
+
+  const iconColor = active ? c.onSecondaryContainer : c.onSurfaceVariant
+  const CurrentIcon = active && ActiveIcon ? ActiveIcon : Icon
 
   return (
-    <PressableScale
+    <Pressable
       testID={testID}
-      style={[
-        styles.ctrl,
-        a.flex_1,
-        {paddingVertical: 4, justifyContent: 'center'},
-      ]}
+      style={[styles.item, hideLabel && styles.itemCompact]}
       onPress={onPress}
       onLongPress={onLongPress}
-      accessible={accessible}
-      accessibilityLabel={accessibilityLabel}
+      onPressIn={() => setInteraction(m3e.stateLayer.pressed, true)}
+      onPressOut={() => setInteraction(0, false)}
+      onHoverIn={() => setInteraction(m3e.stateLayer.hovered, true)}
+      onHoverOut={() => setInteraction(0, false)}
+      accessibilityRole="tab"
+      accessibilityState={{selected: active}}
+      accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
-      targetScale={0.8}
-      accessibilityLargeContentTitle={accessibilityLabel}
+      accessibilityLargeContentTitle={label}
       accessibilityShowsLargeContentViewer>
-      <View
-        style={[
-          styles.pillIndicator,
-          active && {backgroundColor: t.palette.primary_100},
-        ]}>
-        {icon}
-      </View>
-      {notificationCount ? (
-        <View
+      <View style={styles.indicatorBox}>
+        <Animated.View
           style={[
-            styles.notificationCount,
-            a.rounded_full,
-            {backgroundColor: t.palette.primary_500},
-          ]}>
-          <Text
-            style={styles.notificationCountLabel}
-            maxFontSizeMultiplier={1.5}>
-            {notificationCount}
-          </Text>
-        </View>
-      ) : hasNew ? (
-        <View
-          style={[styles.hasNewBadge, {backgroundColor: t.palette.primary_500}]}
+            styles.indicator,
+            {backgroundColor: c.secondaryContainer},
+            indicatorStyle,
+          ]}
         />
-      ) : null}
-    </PressableScale>
+        <Animated.View
+          style={[
+            styles.indicator,
+            {
+              backgroundColor: active
+                ? c.onSecondaryContainer
+                : c.onSurfaceVariant,
+            },
+            stateLayerStyle,
+          ]}
+        />
+        {renderIcon
+          ? renderIcon(active)
+          : CurrentIcon && (
+              <CurrentIcon width={ICON_SIZE} style={{color: iconColor}} />
+            )}
+        {count ? (
+          <View style={[styles.largeBadge, {backgroundColor: c.error}]}>
+            <Text
+              style={[styles.largeBadgeLabel, {color: c.onError}]}
+              maxFontSizeMultiplier={1.3}>
+              {count}
+            </Text>
+          </View>
+        ) : hasNew ? (
+          <View style={[styles.smallBadge, {backgroundColor: c.error}]} />
+        ) : null}
+      </View>
+      {!hideLabel && (
+        <Text
+          style={[
+            styles.label,
+            active ? a.font_bold : a.font_medium,
+            {color: active ? c.onSurface : c.onSurfaceVariant},
+          ]}
+          numberOfLines={1}
+          maxFontSizeMultiplier={1.3}>
+          {label}
+        </Text>
+      )}
+    </Pressable>
   )
 }
 

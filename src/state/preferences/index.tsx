@@ -5,6 +5,7 @@ import {Provider as BypassBlocksProvider} from './bypass-blocks'
 import {Provider as DisableHapticsProvider} from './disable-haptics'
 import {Provider as ExternalEmbedsProvider} from './external-embeds-prefs'
 import {Provider as HiddenPostsProvider} from './hidden-posts'
+import {Provider as HideTabLabelsProvider} from './hide-tab-labels'
 import {Provider as InAppBrowserProvider} from './in-app-browser'
 import {Provider as KawaiiProvider} from './kawaii'
 import {Provider as LanguagesProvider} from './languages'
@@ -32,6 +33,7 @@ export {
   useSetExternalEmbedPref,
 } from './external-embeds-prefs'
 export {useHiddenPosts, useHiddenPostsApi} from './hidden-posts'
+export {useHideTabLabels, useSetHideTabLabels} from './hide-tab-labels'
 export {useLabelDefinitions} from './label-defs'
 export {useLanguagePrefs, useLanguagePrefsApi} from './languages'
 export {useMaterialYou, useSetMaterialYou} from './material-you'
@@ -63,11 +65,13 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
                             <TranslationEngineProvider>
                               <BypassBlocksProvider>
                                 <MaterialYouProvider>
-                                  <ProxyExternalLinksProvider>
-                                    <AllowBlockedInteractionsProvider>
-                                      {children}
-                                    </AllowBlockedInteractionsProvider>
-                                  </ProxyExternalLinksProvider>
+                                  <HideTabLabelsProvider>
+                                    <ProxyExternalLinksProvider>
+                                      <AllowBlockedInteractionsProvider>
+                                        {children}
+                                      </AllowBlockedInteractionsProvider>
+                                    </ProxyExternalLinksProvider>
+                                  </HideTabLabelsProvider>
                                 </MaterialYouProvider>
                               </BypassBlocksProvider>
                             </TranslationEngineProvider>

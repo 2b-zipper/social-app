@@ -15,6 +15,18 @@ let mockHasSession = true
 let mockAtmosphereEnabled = true
 let mockNavigationState: State
 
+jest.mock('react-native-reanimated', () => ({
+  __esModule: true,
+  default: {
+    View: jest.requireActual<typeof import('react-native')>('react-native')
+      .View,
+  },
+  Extrapolation: {CLAMP: 'clamp'},
+  interpolate: () => 0,
+  useAnimatedStyle: () => ({}),
+  useSharedValue: (value: number) => ({get: () => value, set: () => {}}),
+  withSpring: (value: number) => value,
+}))
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual<typeof ReactNavigation>('@react-navigation/native'),
   useNavigation: () => ({
@@ -137,6 +149,10 @@ i18n.loadAndActivate({locale: 'en', messages: {}})
 
 beforeEach(() => {
   jest.clearAllMocks()
+  jest.spyOn(global, 'requestAnimationFrame').mockImplementation(callback => {
+    callback(0)
+    return 0
+  })
   mockHasSession = true
   mockAtmosphereEnabled = true
   mockNavigationState = buildStateObject('SearchTab', 'Search', {})

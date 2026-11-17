@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react'
-import {RefreshControl, View} from 'react-native'
+import {View} from 'react-native'
 import {useSharedValue, withTiming} from 'react-native-reanimated'
 import {useLingui} from '@lingui/react/macro'
 
@@ -10,6 +10,7 @@ import {TabPills} from '#/screens/Notifications/components/TabPills'
 import {atoms as a, useTheme} from '#/alf'
 import * as Layout from '#/components/Layout'
 import {Loader} from '#/components/Loader'
+import {RefreshControl} from '#/components/RefreshControl'
 import {Text} from '#/components/Typography'
 import {AppCard} from './components/AppCard'
 import {useAtmosphereAppCategories} from './components/appCategories'
@@ -56,12 +57,7 @@ export function AtmosphereAppsTab() {
   }
 
   const refreshControl = (
-    <RefreshControl
-      refreshing={isRefreshing}
-      onRefresh={onRefresh}
-      tintColor={t.atoms.text.color}
-      titleColor={t.atoms.text.color}
-    />
+    <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
   )
 
   const errorMessage = (

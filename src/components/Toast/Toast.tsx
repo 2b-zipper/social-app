@@ -1,7 +1,8 @@
 import {createContext, useContext, useMemo} from 'react'
 import {type GestureResponderEvent, View} from 'react-native'
 
-import {atoms as a, select, useAlf, useTheme} from '#/alf'
+import {atoms as a, useAlf, useTheme, utils} from '#/alf'
+import * as m3e from '#/alf/m3e'
 import {
   Button,
   type ButtonProps,
@@ -62,15 +63,13 @@ export function Outer({children}: {children: React.ReactNode}) {
       style={[
         a.flex_1,
         a.p_lg,
-        a.rounded_md,
-        a.border,
         a.flex_row,
         a.gap_sm,
-        t.atoms.shadow_sm,
+        t.atoms.shadow_md,
         {
           paddingVertical: 14, // 16 seems too big
+          borderRadius: m3e.shape.medium,
           backgroundColor: styles.backgroundColor,
-          borderColor: styles.borderColor,
         },
       ]}>
       {children}
@@ -121,62 +120,9 @@ export function Action(
   },
 ) {
   const t = useTheme()
+  const c = m3e.colors(t)
   const {fontScaleCompensation} = useToastFontScaleCompensation()
-  const {type} = useContext(ToastConfigContext)
   const {id} = useContext(ToastConfigContext)
-  const styles = useMemo(() => {
-    const base = {
-      base: {
-        textColor: t.palette.contrast_600,
-        backgroundColor: t.atoms.bg_contrast_25.backgroundColor,
-      },
-      interacted: {
-        textColor: t.atoms.text.color,
-        backgroundColor: t.atoms.bg_contrast_50.backgroundColor,
-      },
-    }
-    return {
-      default: base,
-      success: {
-        base: {
-          textColor: select(t.name, {
-            light: t.palette.primary_800,
-            dim: t.palette.primary_900,
-            dark: t.palette.primary_900,
-          }),
-          backgroundColor: t.palette.primary_25,
-        },
-        interacted: {
-          textColor: select(t.name, {
-            light: t.palette.primary_900,
-            dim: t.palette.primary_975,
-            dark: t.palette.primary_975,
-          }),
-          backgroundColor: t.palette.primary_50,
-        },
-      },
-      error: {
-        base: {
-          textColor: select(t.name, {
-            light: t.palette.negative_700,
-            dim: t.palette.negative_900,
-            dark: t.palette.negative_900,
-          }),
-          backgroundColor: t.palette.negative_25,
-        },
-        interacted: {
-          textColor: select(t.name, {
-            light: t.palette.negative_900,
-            dim: t.palette.negative_975,
-            dark: t.palette.negative_975,
-          }),
-          backgroundColor: t.palette.negative_50,
-        },
-      },
-      warning: base,
-      info: base,
-    }[type]
-  }, [t, type])
 
   const onPress = (e: GestureResponderEvent) => {
     console.log('Toast Action pressed, dismissing toast', id)
@@ -194,30 +140,24 @@ export function Action(
               <View
                 style={[
                   a.absolute,
-                  a.curve_continuous,
+                  a.rounded_full,
                   {
-                    // tiny button styles
-                    top: -5,
-                    bottom: -5,
-                    left: -9,
-                    right: -9,
-                    borderRadius: 6,
+                    top: -6,
+                    bottom: -6,
+                    left: -12,
+                    right: -12,
                     backgroundColor: interacted
-                      ? styles.interacted.backgroundColor
-                      : styles.base.backgroundColor,
+                      ? utils.alpha(c.inversePrimary, m3e.stateLayer.pressed)
+                      : 'transparent',
                   },
                 ]}
               />
               <BaseText
                 style={[
                   a.text_md,
-                  a.font_medium,
+                  a.font_semi_bold,
                   a.leading_snug,
-                  {
-                    color: interacted
-                      ? styles.interacted.textColor
-                      : styles.base.textColor,
-                  },
+                  {color: c.inversePrimary},
                 ]}>
                 {props.children}
               </BaseText>
@@ -250,62 +190,17 @@ function useToastFontScaleCompensation() {
 
 function useToastStyles({type}: {type: ToastType}) {
   const t = useTheme()
-  return useMemo(() => {
-    return {
-      default: {
-        backgroundColor: t.atoms.bg_contrast_25.backgroundColor,
-        borderColor: t.atoms.border_contrast_low.borderColor,
-        iconColor: t.atoms.text.color,
-        textColor: t.atoms.text.color,
-      },
-      success: {
-        backgroundColor: t.palette.primary_25,
-        borderColor: select(t.name, {
-          light: t.palette.primary_300,
-          dim: t.palette.primary_200,
-          dark: t.palette.primary_100,
-        }),
-        iconColor: select(t.name, {
-          light: t.palette.primary_600,
-          dim: t.palette.primary_700,
-          dark: t.palette.primary_700,
-        }),
-        textColor: select(t.name, {
-          light: t.palette.primary_600,
-          dim: t.palette.primary_700,
-          dark: t.palette.primary_700,
-        }),
-      },
-      error: {
-        backgroundColor: t.palette.negative_25,
-        borderColor: select(t.name, {
-          light: t.palette.negative_200,
-          dim: t.palette.negative_200,
-          dark: t.palette.negative_100,
-        }),
-        iconColor: select(t.name, {
-          light: t.palette.negative_700,
-          dim: t.palette.negative_900,
-          dark: t.palette.negative_900,
-        }),
-        textColor: select(t.name, {
-          light: t.palette.negative_700,
-          dim: t.palette.negative_900,
-          dark: t.palette.negative_900,
-        }),
-      },
-      warning: {
-        backgroundColor: t.atoms.bg_contrast_25.backgroundColor,
-        borderColor: t.atoms.border_contrast_low.borderColor,
-        iconColor: t.atoms.text.color,
-        textColor: t.atoms.text.color,
-      },
-      info: {
-        backgroundColor: t.atoms.bg_contrast_25.backgroundColor,
-        borderColor: t.atoms.border_contrast_low.borderColor,
-        iconColor: t.atoms.text.color,
-        textColor: t.atoms.text.color,
-      },
-    }[type]
-  }, [t, type])
+  const c = m3e.colors(t)
+  const iconColors: Record<ToastType, string> = {
+    default: c.inverseOnSurface,
+    success: c.inversePrimary,
+    error: c.inverseError,
+    warning: c.inverseOnSurface,
+    info: c.inverseOnSurface,
+  }
+  return {
+    backgroundColor: c.inverseSurface,
+    iconColor: iconColors[type],
+    textColor: c.inverseOnSurface,
+  }
 }

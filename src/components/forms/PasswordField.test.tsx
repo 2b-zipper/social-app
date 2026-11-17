@@ -17,7 +17,7 @@ jest.mock('#/env', () => ({IS_WEB: false, IS_NATIVE: true}))
 jest.mock('#/alf', () => {
   const theme = {
     name: 'light',
-    palette: {contrast_500: '#888', negative_25: '#fee', negative_300: '#f99'},
+    palette: {contrast_500: '#888', negative_25: '#fee', negative_500: '#f99'},
     atoms: new Proxy({}, {get: () => ({})}),
   }
   return {
@@ -30,6 +30,17 @@ jest.mock('#/alf', () => {
     applyFonts: () => {},
     platform: () => undefined,
     web: () => undefined,
+  }
+})
+jest.mock('react-native-reanimated', () => {
+  const {View: AnimatedView} =
+    require('react-native') as typeof import('react-native')
+  return {
+    __esModule: true,
+    default: {View: AnimatedView},
+    useAnimatedStyle: () => ({}),
+    useSharedValue: (value: number) => ({get: () => value, set: () => {}}),
+    withSpring: (value: number) => value,
   }
 })
 jest.mock('#/components/Button', () => {

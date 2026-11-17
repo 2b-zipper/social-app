@@ -1,6 +1,22 @@
 import {StyleSheet} from 'react-native'
 
+import {clamp} from '#/lib/numbers'
+import {useHideTabLabels} from '#/state/preferences'
 import {atoms as a, tokens} from '#/alf'
+
+export const NAV_BAR_HEIGHT = 64
+export const NAV_BAR_HEIGHT_COMPACT = 56
+
+export function useNavBarHeight() {
+  return useHideTabLabels() ? NAV_BAR_HEIGHT_COMPACT : NAV_BAR_HEIGHT
+}
+
+export const NAV_INDICATOR_WIDTH = 56
+export const NAV_INDICATOR_HEIGHT = 32
+
+export function navBarBottomInset(safeAreaBottom: number) {
+  return clamp(safeAreaBottom, 8, 60)
+}
 
 export const styles = StyleSheet.create({
   bottomBar: {
@@ -8,16 +24,20 @@ export const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    paddingLeft: tokens.space.sm,
-    paddingRight: tokens.space.sm,
   },
   bottomBarWeb: {
     ...a.fixed,
+    flexDirection: 'row',
+    paddingLeft: tokens.space.sm,
+    paddingRight: tokens.space.sm,
     left: 0,
     right: 0,
     bottom: 0,
     borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  items: {
+    flexDirection: 'row',
+    paddingHorizontal: tokens.space.xs,
   },
   ctrl: {
     flex: 1,
@@ -25,19 +45,64 @@ export const styles = StyleSheet.create({
     paddingBottom: 4,
     alignItems: 'center',
   },
-  pillIndicator: {
-    width: 60,
-    height: 38,
-    borderRadius: 19,
+  item: {
+    flex: 1,
+    alignItems: 'center',
+    paddingTop: 6,
+  },
+  itemCompact: {
+    justifyContent: 'center',
+    paddingTop: 0,
+  },
+  indicatorBox: {
+    width: NAV_INDICATOR_WIDTH,
+    height: NAV_INDICATOR_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 'auto',
-    marginRight: 'auto',
+  },
+  indicator: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: NAV_INDICATOR_HEIGHT / 2,
+  },
+  label: {
+    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.3,
+    textAlign: 'center',
+  },
+  largeBadge: {
+    position: 'absolute',
+    top: 0,
+    left: NAV_INDICATOR_WIDTH / 2 + 2,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  largeBadgeLabel: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+    includeFontPadding: false,
+  },
+  smallBadge: {
+    position: 'absolute',
+    top: 4,
+    left: NAV_INDICATOR_WIDTH / 2 + 8,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    zIndex: 1,
   },
   notificationCount: {
     position: 'absolute',
     left: '52%',
-    top: 3,
+    top: 8,
     paddingHorizontal: 5,
     paddingTop: 1,
     paddingBottom: 2,
@@ -60,7 +125,7 @@ export const styles = StyleSheet.create({
     position: 'absolute',
     left: '54%',
     marginLeft: 4,
-    top: 5,
+    top: 10,
     width: 8,
     height: 8,
     borderRadius: 4,

@@ -1,5 +1,5 @@
 import {StyleSheet, useWindowDimensions} from 'react-native'
-import Animated from 'react-native-reanimated'
+import Animated, {ZoomIn, ZoomOut} from 'react-native-reanimated'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {useMediaQuery} from 'react-responsive'
 
@@ -9,12 +9,25 @@ import {useMinimalShellFabTransform} from '#/lib/hooks/useMinimalShellTransform'
 import {useWebMediaQueries} from '#/lib/hooks/useWebMediaQueries'
 import {clamp} from '#/lib/numbers'
 import {useSession} from '#/state/session'
-import {atoms as a, useLayoutBreakpoints, useTheme, web} from '#/alf'
+import {navBarBottomInset} from '#/view/shell/bottom-bar/BottomBarStyles'
+import {atoms as a, useLayoutBreakpoints, useTheme, utils, web} from '#/alf'
+import * as m3e from '#/alf/m3e'
 import {useInteractionState} from '#/components/hooks/useInteractionState'
 import {ArrowTop_Stroke2_Corner0_Rounded as ArrowIcon} from '#/components/icons/Arrow'
 import {CENTER_COLUMN_OFFSET} from '#/components/Layout'
-import {SubtleHover} from '#/components/SubtleHover'
 import {IS_NATIVE} from '#/env'
+
+const SIZE = 48
+const FAB_SIZE = 56
+
+const enter = ZoomIn.springify()
+  .mass(m3e.motion.fastSpatial.mass ?? 1)
+  .stiffness(m3e.motion.fastSpatial.stiffness ?? 800)
+  .damping(m3e.motion.fastSpatial.damping ?? 34)
+const exit = ZoomOut.springify()
+  .mass(m3e.motion.fastEffects.mass ?? 1)
+  .stiffness(m3e.motion.fastEffects.stiffness ?? 3800)
+  .damping(m3e.motion.fastEffects.damping ?? 123)
 
 export function LoadLatestBtn({
   onPress,
@@ -32,6 +45,7 @@ export function LoadLatestBtn({
   const fabMinimalShellTransform = useMinimalShellFabTransform()
   const insets = useSafeAreaInsets()
   const t = useTheme()
+  const c = m3e.colors(t)
   const {
     state: hovered,
     onIn: onHoverIn,
@@ -47,7 +61,16 @@ export function LoadLatestBtn({
 
   const bottomPosition = isTablet
     ? {bottom: 50}
-    : {bottom: clamp(insets.bottom, 15, 60) + 15}
+    : IS_NATIVE
+      ? {bottom: navBarBottomInset(insets.bottom) + 16 + (FAB_SIZE - SIZE) / 2}
+      : {bottom: clamp(insets.bottom, 15, 60) + 15}
+
+  const containerColor = showIndicator
+    ? c.primaryContainer
+    : c.secondaryContainer
+  const contentColor = showIndicator
+    ? c.onPrimaryContainer
+    : c.onSecondaryContainer
 
   return (
     <Animated.View
@@ -55,7 +78,7 @@ export function LoadLatestBtn({
       style={[
         a.fixed,
         a.z_20,
-        {left: 18},
+        {left: 16},
         isDesktop &&
           (isTallViewport
             ? styles.loadLatestOutOfLine
@@ -72,37 +95,47 @@ export function LoadLatestBtn({
         bottomPosition,
         showBottomBar && fabMinimalShellTransform,
       ]}>
-      <PressableScale
-        style={[
-          {
-            width: 42,
-            height: 42,
-          },
-          a.rounded_full,
-          a.align_center,
-          a.justify_center,
-          a.border,
-          t.atoms.border_contrast_low,
-          showIndicator ? {backgroundColor: t.palette.primary_50} : t.atoms.bg,
-        ]}
-        onPress={onPress}
-        hitSlop={HITSLOP_20}
-        accessibilityLabel={label}
-        accessibilityHint=""
-        targetScale={0.9}
-        onPointerEnter={onHoverIn}
-        onPointerLeave={onHoverOut}>
-        <SubtleHover hover={hovered} style={[a.rounded_full]} />
-        <ArrowIcon
-          size="md"
+      <Animated.View
+        entering={IS_NATIVE ? enter : undefined}
+        exiting={IS_NATIVE ? exit : undefined}>
+        <PressableScale
           style={[
-            a.z_10,
-            showIndicator
-              ? {color: t.palette.primary_500}
-              : t.atoms.text_contrast_medium,
+            a.align_center,
+            a.justify_center,
+            a.shadow_md,
+            {
+              width: SIZE,
+              height: SIZE,
+              borderRadius: m3e.shape.medium,
+              backgroundColor: containerColor,
+              elevation: 3,
+            },
           ]}
-        />
-      </PressableScale>
+          onPress={onPress}
+          hitSlop={HITSLOP_20}
+          accessibilityLabel={label}
+          accessibilityHint=""
+          targetScale={0.9}
+          onPointerEnter={onHoverIn}
+          onPointerLeave={onHoverOut}>
+          {hovered && (
+            <Animated.View
+              style={[
+                a.absolute,
+                a.inset_0,
+                {
+                  borderRadius: m3e.shape.medium,
+                  backgroundColor: utils.alpha(
+                    contentColor,
+                    m3e.stateLayer.hovered,
+                  ),
+                },
+              ]}
+            />
+          )}
+          <ArrowIcon size="lg" style={{color: contentColor}} />
+        </PressableScale>
+      </Animated.View>
     </Animated.View>
   )
 }

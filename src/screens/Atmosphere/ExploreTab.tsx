@@ -1,5 +1,5 @@
 import {useState} from 'react'
-import {RefreshControl, View} from 'react-native'
+import {View} from 'react-native'
 import {useLingui} from '@lingui/react/macro'
 
 import {useModerationOpts} from '#/state/preferences/moderation-opts'
@@ -14,10 +14,11 @@ import {
   getAtmospherePublications,
 } from '#/screens/Atmosphere/data/exploreData'
 import {useAtmosphereExploreQuery} from '#/screens/Atmosphere/data/useAtmosphereExploreQuery'
-import {atoms as a, useTheme} from '#/alf'
+import {atoms as a} from '#/alf'
 import * as Gallery from '#/components/Gallery'
 import * as Layout from '#/components/Layout'
 import {Loader} from '#/components/Loader'
+import {RefreshControl} from '#/components/RefreshControl'
 import {AnnouncementBanner} from './components/AnnouncementBanner'
 import {AtmosphereNux} from './components/AtmosphereNux'
 import {FeaturedApps} from './components/FeaturedApps'
@@ -31,7 +32,6 @@ export function AtmosphereExploreTab({
 }: {
   onPressSeeMoreApps?: () => void
 }) {
-  const t = useTheme()
   const {t: l} = useLingui()
   const {data, isError, isPending, refetch} = useAtmosphereExploreQuery()
   const moderationOpts = useModerationOpts()
@@ -47,12 +47,7 @@ export function AtmosphereExploreTab({
   }
 
   const refreshControl = (
-    <RefreshControl
-      refreshing={isRefreshing}
-      onRefresh={onRefresh}
-      tintColor={t.atoms.text.color}
-      titleColor={t.atoms.text.color}
-    />
+    <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
   )
 
   const errorMessage = (

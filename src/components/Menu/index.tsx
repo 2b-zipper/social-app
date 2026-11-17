@@ -11,8 +11,10 @@ import {Trans, useLingui} from '@lingui/react/macro'
 import flattenReactChildren from 'react-keyed-flatten-children'
 
 import {atoms as a, useTheme} from '#/alf'
+import * as m3e from '#/alf/m3e'
 import {Button, ButtonText} from '#/components/Button'
 import * as Dialog from '#/components/Dialog'
+import {BaseRadio} from '#/components/forms/Toggle'
 import {useInteractionState} from '#/components/hooks/useInteractionState'
 import {
   Context,
@@ -149,6 +151,7 @@ export function Item({
   ...rest
 }: ItemProps) {
   const t = useTheme()
+  const c = m3e.colors(t)
   const context = useMenuContext()
   const {state: focused, onIn: onFocus, onOut: onBlur} = useInteractionState()
   const {
@@ -193,14 +196,18 @@ export function Item({
         a.flex_row,
         a.align_center,
         a.gap_sm,
-        a.px_md,
+        a.px_lg,
         a.overflow_hidden,
-        a.border,
-        t.atoms.bg_contrast_25,
-        t.atoms.border_contrast_low,
-        {minHeight: 48, paddingVertical: 12, borderRadius: 16},
+        a.curve_continuous,
+        {
+          minHeight: 56,
+          paddingVertical: 12,
+          borderRadius: m3e.shape.largeIncreased,
+          backgroundColor: c.surfaceContainer,
+        },
         style,
-        (focused || pressed) && !rest.disabled && [t.atoms.bg_contrast_50],
+        (focused || pressed) &&
+          !rest.disabled && {backgroundColor: c.surfaceContainerHigh},
       ]}>
       <ItemContext.Provider
         value={{disabled: Boolean(rest.disabled), destructive}}>
@@ -220,10 +227,10 @@ export function ItemText({children, style}: ItemTextProps) {
       style={[
         a.flex_1,
         a.text_md,
-        a.font_semi_bold,
-        t.atoms.text_contrast_high,
+        a.font_medium,
+        {color: m3e.colors(t).onSurface},
         style,
-        destructive && {color: t.palette.negative_500},
+        destructive && {color: m3e.colors(t).error},
         disabled && t.atoms.text_contrast_low,
       ]}>
       {children}
@@ -243,43 +250,23 @@ export function ItemIcon({icon: Comp, fill}: ItemIconProps) {
           : disabled
             ? t.atoms.text_contrast_low.color
             : destructive
-              ? t.palette.negative_500
-              : t.atoms.text_contrast_medium.color
+              ? m3e.colors(t).error
+              : m3e.colors(t).onSurfaceVariant
       }
     />
   )
 }
 
 export function ItemRadio({selected}: {selected: boolean}) {
-  const t = useTheme()
+  const {disabled} = useMenuItemContext()
   return (
-    <View
-      style={[
-        a.justify_center,
-        a.align_center,
-        a.rounded_full,
-        t.atoms.border_contrast_high,
-        {
-          borderWidth: 1,
-          height: 20,
-          width: 20,
-        },
-      ]}>
-      {selected ? (
-        <View
-          style={[
-            a.absolute,
-            a.rounded_full,
-            {height: 14, width: 14},
-            selected
-              ? {
-                  backgroundColor: t.palette.primary_500,
-                }
-              : {},
-          ]}
-        />
-      ) : null}
-    </View>
+    <BaseRadio
+      selected={selected}
+      hovered={false}
+      focused={false}
+      disabled={disabled}
+      isInvalid={false}
+    />
   )
 }
 
@@ -302,13 +289,13 @@ export function ContainerItem({
         a.flex_row,
         a.align_center,
         a.gap_sm,
-        a.px_md,
-        a.rounded_lg,
+        a.px_lg,
         a.curve_continuous,
-        a.border,
-        t.atoms.bg_contrast_25,
-        t.atoms.border_contrast_low,
-        {paddingVertical: 10},
+        {
+          paddingVertical: 12,
+          borderRadius: m3e.shape.largeIncreased,
+          backgroundColor: m3e.colors(t).surfaceContainer,
+        },
         style,
       ]}>
       {children}
@@ -337,34 +324,36 @@ export function LabelText({
   )
 }
 
+const GROUP_OUTER_RADIUS = m3e.shape.largeIncreased
+const GROUP_INNER_RADIUS = m3e.shape.extraSmall
+
 export function Group({children, style}: GroupProps) {
-  const t = useTheme()
+  const items = flattenReactChildren(children).filter(
+    (child): child is React.ReactElement<{style?: StyleProp<ViewStyle>}> =>
+      isValidElement(child) &&
+      (child.type === Item || child.type === ContainerItem),
+  )
   return (
-    <View
-      style={[
-        {borderRadius: 20},
-        a.curve_continuous,
-        a.overflow_hidden,
-        a.border,
-        t.atoms.border_contrast_low,
-        style,
-      ]}>
-      {flattenReactChildren(children).map((child, i) => {
-        return isValidElement(child) &&
-          (child.type === Item || child.type === ContainerItem) ? (
-          <Fragment key={i}>
-            {i > 0 ? (
-              <View style={[a.border_b, t.atoms.border_contrast_low]} />
-            ) : null}
+    <View style={[a.gap_2xs, style]}>
+      {items.map((child, i) => {
+        const top = i === 0 ? GROUP_OUTER_RADIUS : GROUP_INNER_RADIUS
+        const bottom =
+          i === items.length - 1 ? GROUP_OUTER_RADIUS : GROUP_INNER_RADIUS
+        return (
+          <Fragment key={child.key ?? i}>
             {cloneElement(child, {
-              // @ts-expect-error cloneElement is not aware of the types
-              style: {
-                borderRadius: 0,
-                borderWidth: 0,
-              },
+              style: [
+                child.props.style,
+                {
+                  borderTopLeftRadius: top,
+                  borderTopRightRadius: top,
+                  borderBottomLeftRadius: bottom,
+                  borderBottomRightRadius: bottom,
+                },
+              ],
             })}
           </Fragment>
-        ) : null
+        )
       })}
     </View>
   )

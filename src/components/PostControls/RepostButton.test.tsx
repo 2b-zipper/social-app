@@ -4,6 +4,14 @@ import * as env from '#/env'
 import {RepostButton} from './RepostButton'
 
 jest.mock('#/env', () => ({__esModule: true, IS_IPAD: false}))
+jest.mock('react-native-reanimated', () => ({
+  __esModule: true,
+  default: {createAnimatedComponent: <T,>(component: T) => component},
+  interpolate: () => 0,
+  useAnimatedStyle: () => ({}),
+  useSharedValue: (value: number) => ({get: () => value, set: () => {}}),
+  withSpring: (value: number) => value,
+}))
 jest.mock('#/lib/haptics', () => ({
   useHaptics: () => ({longPress: jest.fn()}),
 }))

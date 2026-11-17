@@ -13,13 +13,19 @@ import {
   type CommonNavigatorParams,
   type NativeStackScreenProps,
 } from '#/lib/routes/types'
-import {useMaterialYou, useSetMaterialYou} from '#/state/preferences'
+import {
+  useHideTabLabels,
+  useMaterialYou,
+  useSetHideTabLabels,
+  useSetMaterialYou,
+} from '#/state/preferences'
 import {useKawaiiMode, useSetKawaiiMode} from '#/state/preferences/kawaii'
 import {useSetThemePrefs, useThemePrefs} from '#/state/shell'
 import {type Alf, atoms as a, native, useAlf, useTheme} from '#/alf'
 import * as SegmentedControl from '#/components/forms/SegmentedControl'
 import * as Toggle from '#/components/forms/Toggle'
 import {type Props as SVGIconProps} from '#/components/icons/common'
+import {EyeSlash_Stroke2_Corner0_Rounded as EyeSlashIcon} from '#/components/icons/EyeSlash'
 import {Moon_Stroke2_Corner0_Rounded as MoonIcon} from '#/components/icons/Moon'
 import {PaintRoller_Stroke2_Corner2_Rounded as PaletteIcon} from '#/components/icons/PaintRoller'
 import {Phone_Stroke2_Corner0_Rounded as PhoneIcon} from '#/components/icons/Phone'
@@ -28,7 +34,7 @@ import {TextSize_Stroke2_Corner0_Rounded as TextSize} from '#/components/icons/T
 import {TitleCase_Stroke2_Corner0_Rounded as Aa} from '#/components/icons/TitleCase'
 import * as Layout from '#/components/Layout'
 import {Text} from '#/components/Typography'
-import {IS_ANDROID} from '#/env'
+import {IS_ANDROID, IS_NATIVE} from '#/env'
 import * as SettingsList from './components/SettingsList'
 
 type Props = NativeStackScreenProps<CommonNavigatorParams, 'AppearanceSettings'>
@@ -41,6 +47,8 @@ export function AppearanceSettingsScreen({}: Props) {
 
   const materialYou = useMaterialYou()
   const setMaterialYou = useSetMaterialYou()
+  const hideTabLabels = useHideTabLabels()
+  const setHideTabLabels = useSetHideTabLabels()
   const kawaii = useKawaiiMode()
   const setKawaii = useSetKawaiiMode()
 
@@ -191,6 +199,30 @@ export function AppearanceSettingsScreen({}: Props) {
                       style={[a.w_full]}>
                       <Toggle.LabelText style={[a.flex_1]}>
                         <Trans>Use the system accent color</Trans>
+                      </Toggle.LabelText>
+                      <Toggle.Platform />
+                    </Toggle.Item>
+                  </SettingsList.Group>
+                </>
+              )}
+
+              {IS_NATIVE && (
+                <>
+                  <SettingsList.Divider />
+
+                  <SettingsList.Group contentContainerStyle={[a.gap_sm]}>
+                    <SettingsList.ItemIcon icon={EyeSlashIcon} />
+                    <SettingsList.ItemText>
+                      <Trans>Tab labels</Trans>
+                    </SettingsList.ItemText>
+                    <Toggle.Item
+                      name="hide_tab_labels"
+                      label={_(msg`Hide labels on the bottom tabs`)}
+                      value={hideTabLabels}
+                      onChange={value => setHideTabLabels(value)}
+                      style={[a.w_full]}>
+                      <Toggle.LabelText style={[a.flex_1]}>
+                        <Trans>Hide labels on the bottom tabs</Trans>
                       </Toggle.LabelText>
                       <Toggle.Platform />
                     </Toggle.Item>

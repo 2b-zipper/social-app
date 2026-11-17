@@ -20,8 +20,15 @@ import {
   View,
   type ViewStyle,
 } from 'react-native'
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated'
 
 import {atoms as a, flatten, select, useTheme} from '#/alf'
+import * as m3e from '#/alf/m3e'
 import {type Props as SVGIconProps} from '#/components/icons/common'
 import {Text} from '#/components/Typography'
 
@@ -575,11 +582,22 @@ export const Button = forwardRef<React.ComponentRef<typeof View>, ButtonProps>(
       [state, variant, color, size, shape, disabled],
     )
 
+    const pressedRadius =
+      shape === 'default' &&
+      size &&
+      PressableComponent === Pressable &&
+      flatten(style)?.borderRadius === undefined
+        ? PRESSED_RADIUS[size]
+        : undefined
+    const Component =
+      pressedRadius === undefined ? PressableComponent : MorphPressable
+
     return (
-      <PressableComponent
+      <Component
         role="button"
         accessibilityHint={undefined} // optional
         {...rest}
+        {...(pressedRadius === undefined ? {} : {pressedRadius})}
         ref={ref}
         aria-label={label}
         aria-pressed={state.pressed}
@@ -598,13 +616,6 @@ export const Button = forwardRef<React.ComponentRef<typeof View>, ButtonProps>(
           ...(state.hovered || state.pressed
             ? [hoverStyles, hoverStyleProp]
             : []),
-          state.pressed &&
-            !disabled && [
-              {transform: [{scale: 0.97}]},
-              shape === 'default' && {
-                borderRadius: size === 'large' ? 16 : size === 'tiny' ? 8 : 12,
-              },
-            ],
         ]}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
@@ -615,11 +626,65 @@ export const Button = forwardRef<React.ComponentRef<typeof View>, ButtonProps>(
         <Context.Provider value={context}>
           {typeof children === 'function' ? children(context) : children}
         </Context.Provider>
-      </PressableComponent>
+      </Component>
     )
   },
 )
 Button.displayName = 'Button'
+
+const PRESSED_RADIUS: Record<NonNullable<ButtonProps['size']>, number> = {
+  large: m3e.shape.large,
+  medium: m3e.shape.medium,
+  small: m3e.shape.medium,
+  tiny: m3e.shape.small,
+}
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
+
+function MorphPressable({
+  ref,
+  pressedRadius = m3e.shape.medium,
+  style,
+  onPressIn,
+  onPressOut,
+  onLayout,
+  ...rest
+}: PressableProps & {
+  ref?: React.Ref<React.ComponentRef<typeof View>>
+  pressedRadius?: number
+  style?: StyleProp<ViewStyle>
+}) {
+  const progress = useSharedValue(0)
+  const restRadius = useSharedValue<number>(m3e.shape.full)
+
+  const morphStyle = useAnimatedStyle(() => ({
+    borderRadius: interpolate(
+      progress.get(),
+      [0, 1],
+      [restRadius.get(), pressedRadius],
+    ),
+  }))
+
+  return (
+    <AnimatedPressable
+      {...rest}
+      ref={ref}
+      style={[style, morphStyle]}
+      onLayout={e => {
+        restRadius.set(e.nativeEvent.layout.height / 2)
+        onLayout?.(e)
+      }}
+      onPressIn={e => {
+        progress.set(withSpring(1, m3e.motion.fastSpatial))
+        onPressIn?.(e)
+      }}
+      onPressOut={e => {
+        progress.set(withSpring(0, m3e.motion.defaultSpatial))
+        onPressOut?.(e)
+      }}
+    />
+  )
+}
 
 export function useSharedButtonTextStyles() {
   const t = useTheme()

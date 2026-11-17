@@ -50,7 +50,8 @@ export function ThreadComposePrompt({
       ]}>
       {!gtMobile && (
         <LinearGradient
-          key={t.name} // android does not update when you change the colors. sigh.
+          // Android does not update when you change the colors. sigh.
+          key={t.atoms.bg.backgroundColor}
           start={[0.5, 0]}
           end={[0.5, 1]}
           colors={[

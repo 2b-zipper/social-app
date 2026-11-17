@@ -1,4 +1,4 @@
-import {createContext, useCallback, useContext, useMemo} from 'react'
+import {createContext, useCallback, useContext, useEffect, useMemo} from 'react'
 import {
   Pressable,
   type PressableProps,
@@ -6,18 +6,25 @@ import {
   View,
   type ViewStyle,
 } from 'react-native'
-import Animated, {Easing, LinearTransition} from 'react-native-reanimated'
+import Animated, {
+  interpolate,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated'
 
 import {HITSLOP_10} from '#/lib/constants'
 import {useHaptics} from '#/lib/haptics'
 import {
   atoms as a,
   native,
-  platform,
   type TextStyleProp,
   useTheme,
+  utils,
   type ViewStyleProp,
 } from '#/alf'
+import * as m3e from '#/alf/m3e'
 import {useInteractionState} from '#/components/hooks/useInteractionState'
 import {CheckThick_Stroke2_Corner0_Rounded as Checkmark} from '#/components/icons/Check'
 import {Text} from '#/components/Typography'
@@ -280,262 +287,212 @@ export function LabelText({
   )
 }
 
-// TODO(eric) refactor to memoize styles without knowledge of state
-export function createSharedToggleStyles({
-  theme: t,
+const CONTROL_SIZE = 20
+const STATE_LAYER_SIZE = 40
+
+function useSelectionSprings(selected: boolean) {
+  const fill = useSharedValue(selected ? 1 : 0)
+  const pop = useSharedValue(selected ? 1 : 0)
+
+  useEffect(() => {
+    fill.set(withSpring(selected ? 1 : 0, m3e.motion.fastEffects))
+    pop.set(withSpring(selected ? 1 : 0, m3e.motion.fastSpatial))
+  }, [selected, fill, pop])
+
+  return {fill, pop}
+}
+
+function SelectionStateLayer({
+  color,
   hovered,
-  selected,
-  disabled,
-  isInvalid,
+  pressed,
+  focused,
 }: {
-  theme: ReturnType<typeof useTheme>
-  selected: boolean
+  color: string
   hovered: boolean
+  pressed: boolean
   focused: boolean
-  disabled: boolean
-  isInvalid: boolean
 }) {
-  const base: ViewStyle[] = []
-  const baseHover: ViewStyle[] = []
-  const indicator: ViewStyle[] = []
-
-  if (selected) {
-    base.push({
-      backgroundColor: t.palette.primary_500,
-      borderColor: t.palette.primary_500,
-    })
-
-    if (hovered) {
-      baseHover.push({
-        backgroundColor: t.palette.primary_400,
-        borderColor: t.palette.primary_400,
-      })
-    }
-  } else {
-    base.push({
-      backgroundColor: t.palette.contrast_25,
-      borderColor: t.palette.contrast_100,
-    })
-
-    if (hovered) {
-      baseHover.push({
-        backgroundColor: t.palette.contrast_50,
-        borderColor: t.palette.contrast_200,
-      })
-    }
-  }
-
-  if (isInvalid) {
-    base.push({
-      backgroundColor: t.palette.negative_25,
-      borderColor: t.palette.negative_300,
-    })
-
-    if (hovered) {
-      baseHover.push({
-        backgroundColor: t.palette.negative_25,
-        borderColor: t.palette.negative_600,
-      })
-    }
-
-    if (selected) {
-      base.push({
-        backgroundColor: t.palette.negative_500,
-        borderColor: t.palette.negative_500,
-      })
-
-      if (hovered) {
-        baseHover.push({
-          backgroundColor: t.palette.negative_400,
-          borderColor: t.palette.negative_400,
-        })
-      }
-    }
-  }
-
-  if (disabled) {
-    base.push({
-      backgroundColor: t.palette.contrast_100,
-      borderColor: t.palette.contrast_400,
-    })
-
-    if (selected) {
-      base.push({
-        backgroundColor: t.palette.primary_100,
-        borderColor: t.palette.contrast_400,
-      })
-    }
-  }
-
-  return {
-    baseStyles: base,
-    baseHoverStyles: disabled ? [] : baseHover,
-    indicatorStyles: indicator,
-  }
+  const opacity = pressed
+    ? m3e.stateLayer.pressed
+    : focused
+      ? m3e.stateLayer.focused
+      : hovered
+        ? m3e.stateLayer.hovered
+        : 0
+  if (opacity === 0) return null
+  const offset = (CONTROL_SIZE - STATE_LAYER_SIZE) / 2
+  return (
+    <View
+      pointerEvents="none"
+      style={[
+        a.absolute,
+        a.rounded_full,
+        {
+          top: offset,
+          left: offset,
+          width: STATE_LAYER_SIZE,
+          height: STATE_LAYER_SIZE,
+          backgroundColor: utils.alpha(color, opacity),
+        },
+      ]}
+    />
+  )
 }
 
 export function Checkbox() {
   const t = useTheme()
-  const {selected, hovered, focused, disabled, isInvalid} = useItemContext()
-  const {baseStyles, baseHoverStyles} = createSharedToggleStyles({
-    theme: t,
-    hovered,
-    focused,
-    selected,
-    disabled,
-    isInvalid,
-  })
+  const c = m3e.colors(t)
+  const {selected, hovered, pressed, focused, disabled, isInvalid} =
+    useItemContext()
+  const {fill, pop} = useSelectionSprings(selected)
+
+  const accent = isInvalid ? c.error : c.primary
+  const clear = utils.alpha(accent, 0)
+  const outline = isInvalid
+    ? c.error
+    : hovered
+      ? c.onSurface
+      : c.onSurfaceVariant
+
+  const boxStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(fill.get(), [0, 1], [clear, accent]),
+    borderColor: interpolateColor(fill.get(), [0, 1], [outline, accent]),
+  }))
+
+  const checkStyle = useAnimatedStyle(() => ({
+    opacity: fill.get(),
+    transform: [{scale: Math.max(0, pop.get())}],
+  }))
+
   return (
     <View
       style={[
-        a.justify_center,
-        a.align_center,
-        t.atoms.border_contrast_high,
-        a.transition_color,
         {
-          borderWidth: 2,
-          height: 24,
-          width: 24,
-          borderRadius: 8,
+          width: CONTROL_SIZE,
+          height: CONTROL_SIZE,
+          opacity: disabled ? 0.38 : 1,
         },
-        baseStyles,
-        hovered ? baseHoverStyles : {},
       ]}>
-      {selected && <Checkmark width={14} fill={t.palette.white} />}
+      <SelectionStateLayer
+        color={selected ? accent : c.onSurface}
+        hovered={hovered && !disabled}
+        pressed={pressed && !disabled}
+        focused={focused && !disabled}
+      />
+      <Animated.View
+        style={[
+          a.align_center,
+          a.justify_center,
+          {
+            width: CONTROL_SIZE,
+            height: CONTROL_SIZE,
+            borderWidth: 2,
+            borderRadius: m3e.shape.extraSmall,
+          },
+          boxStyle,
+        ]}>
+        <Animated.View style={checkStyle}>
+          <Checkmark width={12} fill={isInvalid ? c.onError : c.onPrimary} />
+        </Animated.View>
+      </Animated.View>
     </View>
   )
 }
 
+const SWITCH_THUMB_OFF = 16
+const SWITCH_THUMB_ON = 24
+const SWITCH_THUMB_PRESSED = 28
+const SWITCH_TRAVEL = 20
+
 export function Switch() {
   const t = useTheme()
-  const {selected, hovered, disabled, isInvalid} = useItemContext()
-  const {baseStyles, baseHoverStyles, indicatorStyles} = useMemo(() => {
-    const base: ViewStyle[] = []
-    const baseHover: ViewStyle[] = []
-    const indicator: ViewStyle[] = []
+  const c = m3e.colors(t)
+  const {selected, hovered, pressed, disabled, isInvalid} = useItemContext()
 
-    if (selected) {
-      base.push({
-        backgroundColor: t.palette.primary_500,
-        borderColor: t.palette.primary_500,
-      })
+  const onColor = isInvalid ? t.palette.negative_500 : c.primary
+  const offTrack = isInvalid
+    ? t.palette.negative_200
+    : hovered
+      ? t.palette.contrast_200
+      : t.palette.contrast_100
+  const offOutline = isInvalid ? t.palette.negative_400 : t.palette.contrast_400
+  const offThumb = isInvalid ? t.palette.negative_400 : t.palette.contrast_600
 
-      if (hovered) {
-        baseHover.push({
-          backgroundColor: t.palette.primary_400,
-          borderColor: t.palette.primary_400,
-        })
-      }
-    } else {
-      base.push({
-        backgroundColor: t.palette.contrast_100,
-        borderColor: t.palette.contrast_400,
-      })
+  const position = useSharedValue(selected ? 1 : 0)
+  const fill = useSharedValue(selected ? 1 : 0)
+  const press = useSharedValue(0)
 
-      if (hovered) {
-        baseHover.push({
-          backgroundColor: t.palette.contrast_200,
-          borderColor: t.palette.contrast_500,
-        })
-      }
-    }
+  useEffect(() => {
+    position.set(withSpring(selected ? 1 : 0, m3e.motion.fastSpatial))
+    fill.set(withSpring(selected ? 1 : 0, m3e.motion.fastEffects))
+  }, [selected, position, fill])
 
-    if (isInvalid) {
-      base.push({
-        backgroundColor: t.palette.negative_200,
-        borderColor: t.palette.negative_400,
-      })
+  useEffect(() => {
+    press.set(withSpring(pressed ? 1 : 0, m3e.motion.fastSpatial))
+  }, [pressed, press])
 
-      if (hovered) {
-        baseHover.push({
-          backgroundColor: t.palette.negative_100,
-          borderColor: t.palette.negative_500,
-        })
-      }
+  const trackStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(fill.get(), [0, 1], [offTrack, onColor]),
+    borderColor: interpolateColor(fill.get(), [0, 1], [offOutline, onColor]),
+  }))
 
-      if (selected) {
-        base.push({
-          backgroundColor: t.palette.negative_500,
-          borderColor: t.palette.negative_500,
-        })
-
-        if (hovered) {
-          baseHover.push({
-            backgroundColor: t.palette.negative_400,
-            borderColor: t.palette.negative_400,
-          })
-        }
-      }
-    }
-
-    if (disabled) {
-      base.push({
-        backgroundColor: t.palette.contrast_50,
-        borderColor: t.palette.contrast_200,
-      })
-
-      if (selected) {
-        base.push({
-          backgroundColor: t.palette.primary_100,
-          borderColor: t.palette.primary_100,
-        })
-      }
-    }
-
+  const thumbStyle = useAnimatedStyle(() => {
+    const resting = interpolate(
+      position.get(),
+      [0, 1],
+      [SWITCH_THUMB_OFF, SWITCH_THUMB_ON],
+    )
+    const size = resting + (SWITCH_THUMB_PRESSED - resting) * press.get()
     return {
-      baseStyles: base,
-      baseHoverStyles: disabled ? [] : baseHover,
-      indicatorStyles: indicator,
+      backgroundColor: interpolateColor(
+        fill.get(),
+        [0, 1],
+        [offThumb, c.onPrimary],
+      ),
+      transform: [
+        {translateX: position.get() * SWITCH_TRAVEL},
+        {scale: size / SWITCH_THUMB_PRESSED},
+      ],
     }
-  }, [t, hovered, disabled, selected, isInvalid])
+  })
+
+  const iconStyle = useAnimatedStyle(() => ({
+    opacity: fill.get(),
+  }))
 
   return (
-    <View
+    <Animated.View
       style={[
         a.relative,
         a.rounded_full,
-        a.justify_center,
-        t.atoms.bg,
         {
           height: 32,
           width: 52,
-          borderRadius: 16,
           borderWidth: 2,
-          paddingHorizontal: selected ? 4 : 6,
+          opacity: disabled ? 0.38 : 1,
         },
-        a.transition_color,
-        baseStyles,
-        hovered ? baseHoverStyles : {},
+        trackStyle,
       ]}>
       <Animated.View
-        layout={LinearTransition.duration(
-          platform({
-            web: 100,
-            default: 200,
-          }),
-        ).easing(Easing.inOut(Easing.cubic))}
         style={[
+          a.absolute,
           a.rounded_full,
           a.align_center,
           a.justify_center,
-          selected
-            ? {
-                backgroundColor: t.palette.white,
-                height: 24,
-                width: 24,
-                alignSelf: 'flex-end',
-              }
-            : {
-                backgroundColor: t.palette.contrast_600,
-                height: 16,
-                width: 16,
-                alignSelf: 'flex-start',
-              },
-          indicatorStyles,
+          {
+            top: 0,
+            left: 0,
+            width: SWITCH_THUMB_PRESSED,
+            height: SWITCH_THUMB_PRESSED,
+          },
+          thumbStyle,
         ]}>
-        {selected && <Checkmark width={14} fill={t.palette.primary_600} />}
+        <Animated.View style={iconStyle}>
+          <Checkmark width={16} fill={onColor} />
+        </Animated.View>
       </Animated.View>
-    </View>
+    </Animated.View>
   )
 }
 
@@ -551,50 +508,64 @@ export function BaseRadio({
   selected,
   disabled,
   isInvalid,
+  pressed = false,
 }: Pick<
   ItemState,
   'hovered' | 'focused' | 'selected' | 'disabled' | 'isInvalid'
->) {
+> & {
+  pressed?: boolean
+}) {
   const t = useTheme()
+  const c = m3e.colors(t)
+  const {fill, pop} = useSelectionSprings(selected)
 
-  const {baseStyles, baseHoverStyles, indicatorStyles} =
-    createSharedToggleStyles({
-      theme: t,
-      hovered,
-      focused,
-      selected,
-      disabled,
-      isInvalid,
-    })
+  const accent = isInvalid ? c.error : c.primary
+  const outline = isInvalid
+    ? c.error
+    : hovered
+      ? c.onSurface
+      : c.onSurfaceVariant
+
+  const ringStyle = useAnimatedStyle(() => ({
+    borderColor: interpolateColor(fill.get(), [0, 1], [outline, accent]),
+  }))
+
+  const dotStyle = useAnimatedStyle(() => ({
+    opacity: fill.get(),
+    transform: [{scale: Math.max(0, pop.get())}],
+  }))
 
   return (
     <View
       style={[
-        a.justify_center,
-        a.align_center,
-        a.rounded_full,
-        t.atoms.border_contrast_high,
-        a.transition_color,
         {
-          borderWidth: 1,
-          height: 25,
-          width: 25,
-          margin: -1,
+          width: CONTROL_SIZE,
+          height: CONTROL_SIZE,
+          opacity: disabled ? 0.38 : 1,
         },
-        baseStyles,
-        hovered ? baseHoverStyles : {},
       ]}>
-      {selected && (
-        <View
+      <SelectionStateLayer
+        color={selected ? accent : c.onSurface}
+        hovered={hovered && !disabled}
+        pressed={pressed && !disabled}
+        focused={focused && !disabled}
+      />
+      <Animated.View
+        style={[
+          a.align_center,
+          a.justify_center,
+          a.rounded_full,
+          {width: CONTROL_SIZE, height: CONTROL_SIZE, borderWidth: 2},
+          ringStyle,
+        ]}>
+        <Animated.View
           style={[
-            a.absolute,
             a.rounded_full,
-            {height: 12, width: 12},
-            {backgroundColor: t.palette.white},
-            indicatorStyles,
+            {width: 10, height: 10, backgroundColor: accent},
+            dotStyle,
           ]}
         />
-      )}
+      </Animated.View>
     </View>
   )
 }

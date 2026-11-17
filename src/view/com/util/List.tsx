@@ -1,9 +1,5 @@
 import {forwardRef, memo, useContext, useMemo} from 'react'
-import {
-  type ListViewToken as ViewToken,
-  RefreshControl,
-  StyleSheet,
-} from 'react-native'
+import {type ListViewToken as ViewToken, StyleSheet} from 'react-native'
 import {
   type FlatListPropsWithLayout,
   useAnimatedProps,
@@ -24,6 +20,7 @@ import {useDialogContext} from '#/components/Dialog/context'
 import {CENTER_COLUMN_WIDTH} from '#/components/Layout/const'
 import {ScrollbarOffsetContext} from '#/components/Layout/context'
 import {useLightboxIsOpenSharedValue} from '#/components/Lightbox/state'
+import {RefreshControl} from '#/components/RefreshControl'
 import {IS_IOS, IS_IPAD} from '#/env'
 import {FlatList_INTERNAL} from './Views'
 
@@ -168,11 +165,8 @@ let List = forwardRef<ListMethods, ListProps>(
     if (refreshing !== undefined || onRefresh !== undefined) {
       refreshControl = (
         <RefreshControl
-          key={t.atoms.text.color}
           refreshing={refreshing ?? false}
           onRefresh={onRefresh}
-          tintColor={t.atoms.text.color}
-          titleColor={t.atoms.text.color}
           progressViewOffset={progressViewOffset ?? headerOffset}
         />
       )

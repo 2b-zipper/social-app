@@ -616,7 +616,7 @@ export function Handle({
             style={[
               {
                 top: tokens.space._2xl / 2 - 2,
-                width: 36,
+                width: 32,
                 height: 4,
                 borderRadius: 2,
                 alignSelf: 'center',
@@ -630,7 +630,7 @@ export function Handle({
                     opacity: 0.75,
                   }
                 : {
-                    backgroundColor: fill || t.palette.contrast_975,
+                    backgroundColor: fill || t.palette.contrast_700,
                     opacity: 0.4,
                   },
             ]}

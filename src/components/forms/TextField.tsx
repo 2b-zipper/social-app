@@ -1,4 +1,4 @@
-import {createContext, useContext, useMemo, useRef} from 'react'
+import {createContext, useContext, useEffect, useMemo, useRef} from 'react'
 import {
   type AccessibilityProps,
   StyleSheet,
@@ -8,6 +8,11 @@ import {
   View,
   type ViewStyle,
 } from 'react-native'
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated'
 
 import {HITSLOP_20} from '#/lib/constants'
 import {mergeRefs} from '#/lib/merge-refs'
@@ -23,6 +28,7 @@ import {
   useTheme,
   web,
 } from '#/alf'
+import * as m3e from '#/alf/m3e'
 import {useInteractionState} from '#/components/hooks/useInteractionState'
 import {type Props as SVGIconProps} from '#/components/icons/common'
 import {Text} from '#/components/Typography'
@@ -118,27 +124,27 @@ export function Root({children, isInvalid = false, style}: RootProps) {
 export function useSharedInputStyles() {
   const t = useTheme()
   return useMemo(() => {
+    const c = m3e.colors(t)
     const hover: ViewStyle[] = [
       {
-        borderColor: t.palette.contrast_100,
+        borderColor: t.palette.contrast_500,
       },
     ]
     const focus: ViewStyle[] = [
       {
-        backgroundColor: t.palette.primary_25,
-        borderColor: t.palette.primary_500,
+        borderColor: c.primary,
       },
     ]
     const error: ViewStyle[] = [
       {
         backgroundColor: t.palette.negative_25,
-        borderColor: t.palette.negative_300,
+        borderColor: c.error,
       },
     ]
     const errorHover: ViewStyle[] = [
       {
         backgroundColor: t.palette.negative_25,
-        borderColor: t.palette.negative_500,
+        borderColor: c.error,
       },
     ]
 
@@ -187,9 +193,6 @@ export function createInput(Component: typeof TextInput) {
     const {fonts} = useAlf()
     const ctx = useContext(Context)
     const withinRoot = Boolean(ctx.inputRef)
-
-    const {chromeHover, chromeFocus, chromeError, chromeErrorHover} =
-      useSharedInputStyles()
 
     if (!withinRoot) {
       return (
@@ -280,29 +283,75 @@ export function createInput(Component: typeof TextInput) {
           style={flattened}
         />
 
-        <View
-          style={[
-            a.z_10,
-            a.absolute,
-            a.inset_0,
-            a.curve_continuous,
-            {borderRadius: 16},
-            t.atoms.bg_contrast_25,
-            {
-              borderColor: t.palette.contrast_200,
-              borderWidth: ctx.focused ? 2 : 1,
-            },
-            ctx.hovered ? chromeHover : {},
-            ctx.focused ? chromeFocus : {},
-            ctx.isInvalid || isInvalid ? chromeError : {},
-            (ctx.isInvalid || isInvalid) && (ctx.hovered || ctx.focused)
-              ? chromeErrorHover
-              : {},
-          ]}
+        <Chrome
+          hovered={ctx.hovered}
+          focused={ctx.focused}
+          isInvalid={ctx.isInvalid || Boolean(isInvalid)}
         />
       </>
     )
   }
+}
+
+function Chrome({
+  hovered,
+  focused,
+  isInvalid,
+}: {
+  hovered: boolean
+  focused: boolean
+  isInvalid: boolean
+}) {
+  const t = useTheme()
+  const c = m3e.colors(t)
+  const ring = useSharedValue(focused ? 1 : 0)
+
+  useEffect(() => {
+    ring.set(withSpring(focused ? 1 : 0, m3e.motion.fastEffects))
+  }, [focused, ring])
+
+  const ringStyle = useAnimatedStyle(() => ({opacity: ring.get()}))
+
+  const outline = isInvalid
+    ? c.error
+    : hovered
+      ? t.palette.contrast_500
+      : t.palette.contrast_200
+
+  return (
+    <View
+      style={[
+        a.z_10,
+        a.absolute,
+        a.inset_0,
+        a.curve_continuous,
+        t.atoms.bg_contrast_25,
+        {
+          borderRadius: m3e.shape.large,
+          borderWidth: 1,
+          borderColor: outline,
+        },
+        isInvalid && {backgroundColor: t.palette.negative_25},
+      ]}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          a.absolute,
+          a.curve_continuous,
+          {
+            top: -1,
+            left: -1,
+            right: -1,
+            bottom: -1,
+            borderRadius: m3e.shape.large,
+            borderWidth: 2,
+            borderColor: isInvalid ? c.error : c.primary,
+          },
+          ringStyle,
+        ]}
+      />
+    </View>
+  )
 }
 
 export const Input = createInput(TextInput)

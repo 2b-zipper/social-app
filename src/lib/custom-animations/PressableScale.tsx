@@ -12,9 +12,10 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated'
 
+import * as m3e from '#/alf/m3e'
 import {IS_NATIVE, IS_WEB_TOUCH_DEVICE} from '#/env'
 
-const DEFAULT_TARGET_SCALE = IS_NATIVE || IS_WEB_TOUCH_DEVICE ? 0.95 : 1
+const DEFAULT_TARGET_SCALE = IS_NATIVE || IS_WEB_TOUCH_DEVICE ? 0.96 : 1
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
 
@@ -45,16 +46,14 @@ export function PressableScale({
           onPressIn(e)
         }
         cancelAnimation(scale)
-        scale.set(
-          withSpring(targetScale, {damping: 15, stiffness: 320, mass: 0.6}),
-        )
+        scale.set(withSpring(targetScale, m3e.motion.standardFastSpatial))
       }}
       onPressOut={e => {
         if (onPressOut) {
           onPressOut(e)
         }
         cancelAnimation(scale)
-        scale.set(withSpring(1, {damping: 14, stiffness: 280, mass: 0.6}))
+        scale.set(withSpring(1, m3e.motion.defaultSpatial))
       }}
       style={[!reducedMotion && animatedStyle, style]}
       {...rest}>

@@ -142,7 +142,7 @@ function StatusBarFade({style}: ViewStyleProp) {
   return (
     <LinearGradient
       // Android doesn't pick up new colors when the theme changes
-      key={t.name}
+      key={t.atoms.bg.backgroundColor}
       pointerEvents="none"
       style={[a.fixed, a.z_10, {top: 0, height: top * 2}, style]}
       start={[0.5, 0]}

@@ -48,23 +48,18 @@ export function PostControlButton({
     [big, active, activeColor, t.palette.contrast_500],
   )
 
-  const style = useMemo(
-    () => [
-      a.flex_row,
-      a.align_center,
-      a.gap_xs,
-      a.rounded_full,
-      {
-        backgroundColor:
-          active && activeColor
-            ? utils.alpha(activeColor, 0.16)
-            : t.atoms.bg_contrast_50.backgroundColor,
-        paddingHorizontal: big ? 11 : 8,
-        paddingVertical: big ? 6 : 5,
-      },
-    ],
-    [active, activeColor, big, t.atoms.bg_contrast_50.backgroundColor],
-  )
+  const style = [
+    a.flex_row,
+    a.align_center,
+    a.gap_xs,
+    a.rounded_full,
+    {
+      backgroundColor:
+        active && activeColor ? utils.alpha(activeColor, 0.14) : 'transparent',
+      paddingHorizontal: big ? 10 : 8,
+      paddingVertical: big ? 6 : 5,
+    },
+  ]
 
   const handlePress = useMemo(() => {
     if (!onPress) return
@@ -88,7 +83,7 @@ export function PostControlButton({
       onPress={handlePress}
       onLongPress={handleLongPress}
       style={style}
-      hoverStyle={t.atoms.bg_contrast_100}
+      hoverStyle={t.atoms.bg_contrast_50}
       shape="round"
       variant="ghost"
       color="secondary"

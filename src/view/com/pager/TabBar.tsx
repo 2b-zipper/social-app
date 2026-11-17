@@ -20,6 +20,7 @@ import {useLingui} from '@lingui/react/macro'
 import {PressableWithHover} from '#/view/com/util/PressableWithHover'
 import {BlockDrawerGesture} from '#/view/shell/BlockDrawerGesture'
 import {atoms as a, useTheme} from '#/alf'
+import * as m3e from '#/alf/m3e'
 import {Center} from '#/components/Layout'
 import {Text} from '#/components/Typography'
 
@@ -38,6 +39,8 @@ export interface TabBarProps {
 }
 
 const CONTENT_PADDING = 6
+const ITEM_INSET = 4
+const ITEM_VERTICAL_PADDING = 6
 // How much of the previous/next item we're requiring
 // when deciding whether to scroll into view on tap.
 const OFFSCREEN_ITEM_WIDTH = 20
@@ -227,6 +230,41 @@ export function TabBar({
     [layouts],
   )
 
+  const indicatorStyle = useAnimatedStyle(() => {
+    if (!_WORKLET) {
+      return {opacity: 0}
+    }
+    const layoutsValue = layouts.get()
+    if (layoutsValue.length !== itemsLength || itemsLength === 0) {
+      return {opacity: 0}
+    }
+    const indices: number[] = []
+    const lefts: number[] = []
+    const widths: number[] = []
+    for (let i = 0; i < itemsLength; i++) {
+      const layout = layoutsValue[i]
+      if (!layout) {
+        return {opacity: 0}
+      }
+      indices.push(i)
+      lefts.push(layout.x + ITEM_INSET)
+      widths.push(layout.width - 2 * ITEM_INSET)
+    }
+    if (itemsLength === 1) {
+      return {
+        opacity: 1,
+        width: widths[0],
+        transform: [{translateX: lefts[0]}],
+      }
+    }
+    const progress = dragProgress.get()
+    return {
+      opacity: 1,
+      width: interpolate(progress, indices, widths, 'clamp'),
+      transform: [{translateX: interpolate(progress, indices, lefts, 'clamp')}],
+    }
+  })
+
   const onPressItem = useCallback(
     (index: number) => {
       scheduleOnUI(onPressUIThread, index)
@@ -266,6 +304,14 @@ export function TabBar({
               contentSize.set(e.nativeEvent.layout.width)
             }}
             style={[styles.items, align === 'center' && styles.itemsCentered]}>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.indicator,
+                {backgroundColor: m3e.colors(t).secondaryContainer},
+                indicatorStyle,
+              ]}
+            />
             {items.map((item, i) => {
               return (
                 <TabBarItem
@@ -326,26 +372,6 @@ function TabBarItem({
     }
   })
 
-  const pillStyle = useAnimatedStyle(() => {
-    if (!_WORKLET) {
-      return {opacity: isSelected ? 1 : 0}
-    }
-    const activeAmount = interpolate(
-      dragProgress.get(),
-      [index - 1, index, index + 1],
-      [0, 1, 0],
-      'clamp',
-    )
-    return {
-      opacity: activeAmount,
-      transform: [
-        {
-          scale: interpolate(activeAmount, [0, 1], [0.92, 1], 'clamp'),
-        },
-      ],
-    }
-  })
-
   const handleLayout = useCallback(
     (e: LayoutChangeEvent) => {
       scheduleOnUI(onItemLayout, index, e.nativeEvent.layout)
@@ -368,16 +394,7 @@ function TabBarItem({
         accessibilityLabel={unread ? l`${item}, unread` : undefined}
         accessibilityHint=""
         accessibilityRole="tab">
-        <View style={[styles.itemInner, t.atoms.bg_contrast_25]}>
-          <Animated.View
-            style={[
-              a.absolute,
-              a.inset_0,
-              a.rounded_full,
-              {backgroundColor: t.palette.primary_100},
-              pillStyle,
-            ]}
-          />
+        <View style={styles.itemInner}>
           <Animated.View
             style={[
               textOpacityStyle,
@@ -434,9 +451,16 @@ const styles = StyleSheet.create({
   itemContainerCentered: {
     flexGrow: 1,
   },
+  indicator: {
+    position: 'absolute',
+    top: ITEM_VERTICAL_PADDING,
+    bottom: ITEM_VERTICAL_PADDING,
+    left: 0,
+    borderRadius: 999,
+  },
   item: {
-    paddingVertical: 6,
-    paddingHorizontal: 4,
+    paddingVertical: ITEM_VERTICAL_PADDING,
+    paddingHorizontal: ITEM_INSET,
     justifyContent: 'center',
   },
   itemCentered: {

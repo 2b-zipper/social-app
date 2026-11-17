@@ -707,7 +707,7 @@ function HeaderFade({
   const t = useTheme()
   return (
     <LinearGradient
-      key={t.name}
+      key={t.atoms.bg.backgroundColor}
       pointerEvents="none"
       style={[a.absolute, a.inset_0]}
       start={[0.5, 0]}

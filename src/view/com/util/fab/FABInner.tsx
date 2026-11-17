@@ -13,7 +13,9 @@ import {PressableScale} from '#/lib/custom-animations/PressableScale'
 import {useHaptics} from '#/lib/haptics'
 import {useMinimalShellFabTransform} from '#/lib/hooks/useMinimalShellTransform'
 import {clamp} from '#/lib/numbers'
+import {navBarBottomInset} from '#/view/shell/bottom-bar/BottomBarStyles'
 import {atoms as a, ios, useBreakpoints, useTheme} from '#/alf'
+import * as m3e from '#/alf/m3e'
 import {IS_WEB} from '#/env'
 
 /**
@@ -40,7 +42,9 @@ export function FABInner({testID, icon, onPress, style, ...props}: FABProps) {
 
   const tabletSpacing = gtMobile
     ? {right: 50, bottom: 50}
-    : {right: 24, bottom: clamp(insets.bottom, 12, 34) + 68}
+    : IS_WEB
+      ? {right: 24, bottom: clamp(insets.bottom, 15, 60) + 15}
+      : {right: 16, bottom: navBarBottomInset(insets.bottom) + 16}
 
   return (
     <Animated.View
@@ -69,13 +73,13 @@ export function FABInner({testID, icon, onPress, style, ...props}: FABProps) {
           onPress?.(evt)
           haptics.longPress()
         })}
-        targetScale={0.9}
+        targetScale={0.94}
         style={[
           a.curve_continuous,
           size,
           {backgroundColor: t.palette.primary_500},
           t.atoms.shadow_md,
-          {elevation: 6},
+          {elevation: 3},
           a.align_center,
           a.justify_center,
           style,
@@ -89,14 +93,14 @@ export function FABInner({testID, icon, onPress, style, ...props}: FABProps) {
 
 const styles = StyleSheet.create({
   sizeRegular: {
-    width: 58,
-    height: 58,
-    borderRadius: 20,
+    width: 56,
+    height: 56,
+    borderRadius: m3e.shape.large,
   },
   sizeLarge: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
+    width: 80,
+    height: 80,
+    borderRadius: m3e.shape.largeIncreased,
   },
   outer: {
     // @ts-expect-error web-only

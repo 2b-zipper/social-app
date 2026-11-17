@@ -1,4 +1,4 @@
-import {type ComponentProps, type JSX, memo, useCallback} from 'react'
+import {memo, useCallback, useEffect, useState} from 'react'
 import {
   Linking,
   Pressable,
@@ -6,6 +6,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {plural} from '@lingui/core/macro'
 import {Plural, Trans, useLingui} from '@lingui/react/macro'
@@ -20,14 +27,17 @@ import {
   HELP_DESK_URL,
   UNREAD_NOTIFICATION_CAP,
 } from '#/lib/constants'
-import {type PressableScale} from '#/lib/custom-animations/PressableScale'
 import {useNavigationTabState} from '#/lib/hooks/useNavigationTabState'
 import {getTabState, TabState} from '#/lib/routes/helpers'
 import {
   getTabNavigationAction,
   getTabResetAction,
 } from '#/lib/routes/navigation'
-import {type SharedNavTab, TAB_TO_NAV_ITEM} from '#/lib/routes/tab-to-nav-item'
+import {
+  type SharedNavTab,
+  type SidebarTab,
+  TAB_TO_NAV_ITEM,
+} from '#/lib/routes/tab-to-nav-item'
 import {type RootNavigationProp} from '#/lib/routes/types'
 import {sanitizeHandle} from '#/lib/strings/handles'
 import {emitSoftReset} from '#/state/events'
@@ -41,6 +51,7 @@ import {UserAvatar} from '#/view/com/util/UserAvatar'
 import {useLogoVariant} from '#/view/icons/useLogoVariant'
 import {NavSignupCard} from '#/view/shell/NavSignupCard'
 import {atoms as a, tokens, useTheme, web} from '#/alf'
+import * as m3e from '#/alf/m3e'
 import {BetaTag} from '#/components/BetaTag'
 import {Button, ButtonIcon, ButtonText} from '#/components/Button'
 import {useDialogControl} from '#/components/Dialog'
@@ -55,6 +66,7 @@ import {
   Bookmark_Stroke2_Corner0_Rounded as BookmarkIcon,
 } from '#/components/icons/Bookmark'
 import {BulletList_Stroke2_Corner0_Rounded as ListIcon} from '#/components/icons/BulletList'
+import {type Props as SVGIconProps} from '#/components/icons/common'
 import {Earth_Stroke2_Corner0_Rounded as EarthIcon} from '#/components/icons/Earth'
 import {
   Hashtag_Filled_Corner0_Rounded as HashtagFilledIcon,
@@ -86,7 +98,6 @@ import {IS_NATIVE, IS_WEB} from '#/env'
 import {InviteFriendsDialog} from '#/features/inviteFriends'
 import {useActorStatus} from '#/features/liveNow'
 
-const iconWidth = 26
 type SecondarySidebarTab =
   'Atmosphere' | 'Feeds' | 'Lists' | 'Bookmarks' | 'Settings'
 const SECONDARY_TAB_ROUTES: Record<
@@ -214,11 +225,12 @@ let DrawerContent = ({}: React.PropsWithoutRef<{}>): React.ReactNode => {
   const navigation = useNavigation<RootNavigationProp>()
   const ax = useAnalytics()
   const {
-    isAtHome,
     isAtSearch,
     isAtAtmosphere,
     isAtFeeds,
+    isAtLists,
     isAtBookmarks,
+    isAtSettings,
     isAtNotifications,
     isAtMyProfile,
     isAtMessages,
@@ -228,6 +240,44 @@ let DrawerContent = ({}: React.PropsWithoutRef<{}>): React.ReactNode => {
   const isAtmosphereEnabled = ax.features.enabled(
     ax.features.AtmosphereScreenEnable,
   )
+
+  const currentItem: SidebarTab = isAtSearch
+    ? 'Search'
+    : isAtMessages
+      ? 'Messages'
+      : isAtNotifications
+        ? 'Notifications'
+        : isAtAtmosphere
+          ? 'Atmosphere'
+          : isAtFeeds
+            ? 'Feeds'
+            : isAtLists
+              ? 'Lists'
+              : isAtBookmarks
+                ? 'Bookmarks'
+                : isAtSettings
+                  ? 'Settings'
+                  : isAtMyProfile
+                    ? 'MyProfile'
+                    : 'Home'
+
+  const [pendingItem, setPendingItem] = useState<SidebarTab | null>(null)
+  const [prevItem, setPrevItem] = useState(currentItem)
+  if (prevItem !== currentItem) {
+    setPrevItem(currentItem)
+    setPendingItem(null)
+  }
+  const activeItem = pendingItem ?? currentItem
+
+  const select = (item: SidebarTab, navigate: () => void) => () => {
+    setPendingItem(item)
+    if (IS_WEB) {
+      navigate()
+    } else {
+      // Let the indicator start animating before the next screen blocks the JS thread
+      requestAnimationFrame(navigate)
+    }
+  }
 
   // events
   // =
@@ -370,7 +420,15 @@ let DrawerContent = ({}: React.PropsWithoutRef<{}>): React.ReactNode => {
   return (
     <View
       testID="drawer"
-      style={[a.flex_1, a.border_r, t.atoms.bg, t.atoms.border_contrast_low]}>
+      style={[
+        a.flex_1,
+        a.overflow_hidden,
+        {
+          backgroundColor: m3e.colors(t).surfaceContainerLow,
+          borderTopRightRadius: m3e.shape.large,
+          borderBottomRightRadius: m3e.shape.large,
+        },
+      ]}>
       <ScrollView
         style={[a.flex_1]}
         contentContainerStyle={[
@@ -385,7 +443,7 @@ let DrawerContent = ({}: React.PropsWithoutRef<{}>): React.ReactNode => {
           {hasSession && currentAccount ? (
             <DrawerProfileCard
               account={currentAccount}
-              onPressProfile={onPressDrawerHeaderProfile}
+              onPressProfile={select('MyProfile', onPressDrawerHeaderProfile)}
               onPressShare={
                 IS_NATIVE
                   ? () => {
@@ -409,36 +467,63 @@ let DrawerContent = ({}: React.PropsWithoutRef<{}>): React.ReactNode => {
 
         {hasSession ? (
           <>
-            <SearchMenuItem isActive={isAtSearch} onPress={onPressSearch} />
-            <HomeMenuItem isActive={isAtHome} onPress={onPressHome} />
-            <ChatMenuItem isActive={isAtMessages} onPress={onPressMessages} />
+            <SearchMenuItem
+              isActive={activeItem === 'Search'}
+              onPress={select('Search', onPressSearch)}
+            />
+            <HomeMenuItem
+              isActive={activeItem === 'Home'}
+              onPress={select('Home', onPressHome)}
+            />
+            <ChatMenuItem
+              isActive={activeItem === 'Messages'}
+              onPress={select('Messages', onPressMessages)}
+            />
             <NotificationsMenuItem
-              isActive={isAtNotifications}
-              onPress={onPressNotifications}
+              isActive={activeItem === 'Notifications'}
+              onPress={select('Notifications', onPressNotifications)}
             />
             {isAtmosphereEnabled && (
               <AtmosphereMenuItem
-                isActive={isAtAtmosphere}
-                onPress={onPressAtmosphere}
+                isActive={activeItem === 'Atmosphere'}
+                onPress={select('Atmosphere', onPressAtmosphere)}
               />
             )}
-            <FeedsMenuItem isActive={isAtFeeds} onPress={onPressMyFeeds} />
-            <ListsMenuItem onPress={onPressLists} />
+            <FeedsMenuItem
+              isActive={activeItem === 'Feeds'}
+              onPress={select('Feeds', onPressMyFeeds)}
+            />
+            <ListsMenuItem
+              isActive={activeItem === 'Lists'}
+              onPress={select('Lists', onPressLists)}
+            />
             <BookmarksMenuItem
-              isActive={isAtBookmarks}
-              onPress={onPressBookmarks}
+              isActive={activeItem === 'Bookmarks'}
+              onPress={select('Bookmarks', onPressBookmarks)}
             />
             <ProfileMenuItem
-              isActive={isAtMyProfile}
-              onPress={onPressProfile}
+              isActive={activeItem === 'MyProfile'}
+              onPress={select('MyProfile', onPressProfile)}
             />
-            <SettingsMenuItem onPress={onPressSettings} />
+            <SettingsMenuItem
+              isActive={activeItem === 'Settings'}
+              onPress={select('Settings', onPressSettings)}
+            />
           </>
         ) : (
           <>
-            <HomeMenuItem isActive={isAtHome} onPress={onPressHome} />
-            <FeedsMenuItem isActive={isAtFeeds} onPress={onPressMyFeeds} />
-            <SearchMenuItem isActive={isAtSearch} onPress={onPressSearch} />
+            <HomeMenuItem
+              isActive={activeItem === 'Home'}
+              onPress={select('Home', onPressHome)}
+            />
+            <FeedsMenuItem
+              isActive={activeItem === 'Feeds'}
+              onPress={select('Feeds', onPressMyFeeds)}
+            />
+            <SearchMenuItem
+              isActive={activeItem === 'Search'}
+              onPress={select('Search', onPressSearch)}
+            />
           </>
         )}
 
@@ -512,86 +597,50 @@ let DrawerFooter = ({
 }
 DrawerFooter = memo(DrawerFooter)
 
-interface MenuItemProps extends ComponentProps<typeof PressableScale> {
-  icon: JSX.Element
-  label: string
-  count?: string
-  bold?: boolean
-  beta?: boolean
+type DrawerItemProps = {
+  isActive: boolean
+  onPress: () => void
 }
 
 let SearchMenuItem = ({
   isActive,
   onPress,
-}: {
-  isActive: boolean
-  onPress: () => void
-}): React.ReactNode => {
+}: DrawerItemProps): React.ReactNode => {
   const {t: l} = useLingui()
-  const t = useTheme()
   return (
     <MenuItem
-      icon={
-        isActive ? (
-          <MagnifyingGlassFilledIcon style={[t.atoms.text]} width={iconWidth} />
-        ) : (
-          <MagnifyingGlassIcon style={[t.atoms.text]} width={iconWidth} />
-        )
-      }
+      icon={MagnifyingGlassIcon}
+      activeIcon={MagnifyingGlassFilledIcon}
       label={l`Explore`}
-      bold={isActive}
+      active={isActive}
       onPress={onPress}
     />
   )
 }
 SearchMenuItem = memo(SearchMenuItem)
 
-let HomeMenuItem = ({
-  isActive,
-  onPress,
-}: {
-  isActive: boolean
-  onPress: () => void
-}): React.ReactNode => {
+let HomeMenuItem = ({isActive, onPress}: DrawerItemProps): React.ReactNode => {
   const {t: l} = useLingui()
-  const t = useTheme()
   return (
     <MenuItem
-      icon={
-        isActive ? (
-          <HomeFilledIcon style={[t.atoms.text]} width={iconWidth} />
-        ) : (
-          <HomeIcon style={[t.atoms.text]} width={iconWidth} />
-        )
-      }
+      icon={HomeIcon}
+      activeIcon={HomeFilledIcon}
       label={l`Home`}
-      bold={isActive}
+      active={isActive}
       onPress={onPress}
     />
   )
 }
 HomeMenuItem = memo(HomeMenuItem)
 
-let ChatMenuItem = ({
-  isActive,
-  onPress,
-}: {
-  isActive: boolean
-  onPress: () => void
-}): React.ReactNode => {
+let ChatMenuItem = ({isActive, onPress}: DrawerItemProps): React.ReactNode => {
   const {t: l} = useLingui()
-  const t = useTheme()
   return (
     <MenuItem
-      icon={
-        isActive ? (
-          <MessageFilledIcon style={[t.atoms.text]} width={iconWidth} />
-        ) : (
-          <MessageIcon style={[t.atoms.text]} width={iconWidth} />
-        )
-      }
+      icon={MessageIcon}
+      activeIcon={MessageFilledIcon}
       label={l`Chat`}
-      bold={isActive}
+      active={isActive}
       onPress={onPress}
     />
   )
@@ -601,22 +650,13 @@ ChatMenuItem = memo(ChatMenuItem)
 let NotificationsMenuItem = ({
   isActive,
   onPress,
-}: {
-  isActive: boolean
-  onPress: () => void
-}): React.ReactNode => {
+}: DrawerItemProps): React.ReactNode => {
   const {t: l} = useLingui()
-  const t = useTheme()
   const numUnreadNotifications = useUnreadNotifications()
   return (
     <MenuItem
-      icon={
-        isActive ? (
-          <BellFilledIcon style={[t.atoms.text]} width={iconWidth} />
-        ) : (
-          <BellIcon style={[t.atoms.text]} width={iconWidth} />
-        )
-      }
+      icon={BellIcon}
+      activeIcon={BellFilledIcon}
       label={l`Notifications`}
       accessibilityHint={
         numUnreadNotifications === ''
@@ -627,67 +667,47 @@ let NotificationsMenuItem = ({
             })
       }
       count={numUnreadNotifications}
-      bold={isActive}
+      active={isActive}
       onPress={onPress}
     />
   )
 }
 NotificationsMenuItem = memo(NotificationsMenuItem)
 
-function AtmosphereMenuItem({
-  isActive,
-  onPress,
-}: {
-  isActive: boolean
-  onPress: () => void
-}) {
+function AtmosphereMenuItem({isActive, onPress}: DrawerItemProps) {
   const {t: l} = useLingui()
-  const t = useTheme()
   return (
     <MenuItem
-      icon={<EarthIcon width={iconWidth} style={[t.atoms.text]} />}
+      icon={EarthIcon}
       label={l`Atmosphere`}
       beta
-      bold={isActive}
+      active={isActive}
       onPress={onPress}
     />
   )
 }
 
-let FeedsMenuItem = ({
-  isActive,
-  onPress,
-}: {
-  isActive: boolean
-  onPress: () => void
-}): React.ReactNode => {
+let FeedsMenuItem = ({isActive, onPress}: DrawerItemProps): React.ReactNode => {
   const {t: l} = useLingui()
-  const t = useTheme()
   return (
     <MenuItem
-      icon={
-        isActive ? (
-          <HashtagFilledIcon width={iconWidth} style={[t.atoms.text]} />
-        ) : (
-          <HashtagIcon width={iconWidth} style={[t.atoms.text]} />
-        )
-      }
+      icon={HashtagIcon}
+      activeIcon={HashtagFilledIcon}
       label={l`Feeds`}
-      bold={isActive}
+      active={isActive}
       onPress={onPress}
     />
   )
 }
 FeedsMenuItem = memo(FeedsMenuItem)
 
-let ListsMenuItem = ({onPress}: {onPress: () => void}): React.ReactNode => {
+let ListsMenuItem = ({isActive, onPress}: DrawerItemProps): React.ReactNode => {
   const {t: l} = useLingui()
-  const t = useTheme()
-
   return (
     <MenuItem
-      icon={<ListIcon style={[t.atoms.text]} width={iconWidth} />}
+      icon={ListIcon}
       label={l`Lists`}
+      active={isActive}
       onPress={onPress}
     />
   )
@@ -697,23 +717,14 @@ ListsMenuItem = memo(ListsMenuItem)
 let BookmarksMenuItem = ({
   isActive,
   onPress,
-}: {
-  isActive: boolean
-  onPress: () => void
-}): React.ReactNode => {
+}: DrawerItemProps): React.ReactNode => {
   const {t: l} = useLingui()
-  const t = useTheme()
-
   return (
     <MenuItem
-      icon={
-        isActive ? (
-          <BookmarkFilledIcon style={[t.atoms.text]} width={iconWidth} />
-        ) : (
-          <BookmarkIcon style={[t.atoms.text]} width={iconWidth} />
-        )
-      }
+      icon={BookmarkIcon}
+      activeIcon={BookmarkFilledIcon}
       label={l({message: 'Saved', context: 'link to bookmarks screen'})}
+      active={isActive}
       onPress={onPress}
     />
   )
@@ -723,31 +734,25 @@ BookmarksMenuItem = memo(BookmarksMenuItem)
 let ProfileMenuItem = ({
   isActive,
   onPress,
-}: {
-  isActive: boolean
-  onPress: () => void
-}): React.ReactNode => {
+}: DrawerItemProps): React.ReactNode => {
   const {t: l} = useLingui()
-  const t = useTheme()
   return (
     <MenuItem
-      icon={
-        isActive ? (
-          <UserCircleFilledIcon style={[t.atoms.text]} width={iconWidth} />
-        ) : (
-          <UserCircleIcon style={[t.atoms.text]} width={iconWidth} />
-        )
-      }
+      icon={UserCircleIcon}
+      activeIcon={UserCircleFilledIcon}
       label={l`Profile`}
+      active={isActive}
       onPress={onPress}
     />
   )
 }
 ProfileMenuItem = memo(ProfileMenuItem)
 
-let SettingsMenuItem = ({onPress}: {onPress: () => void}): React.ReactNode => {
+let SettingsMenuItem = ({
+  isActive,
+  onPress,
+}: DrawerItemProps): React.ReactNode => {
   const {i18n, t: l} = useLingui()
-  const t = useTheme()
   const unreadCountQuery = useModerationInboxUnreadCountQuery()
   const unreadCount = unreadCountQuery.data?.unreadCounts.total ?? 0
   const count =
@@ -763,7 +768,7 @@ let SettingsMenuItem = ({onPress}: {onPress: () => void}): React.ReactNode => {
 
   return (
     <MenuItem
-      icon={<SettingsIcon style={[t.atoms.text]} width={iconWidth} />}
+      icon={SettingsIcon}
       label={l`Settings`}
       count={count}
       accessibilityHint={
@@ -774,6 +779,7 @@ let SettingsMenuItem = ({onPress}: {onPress: () => void}): React.ReactNode => {
             })
           : ''
       }
+      active={isActive}
       onPress={onPress}
     />
   )
@@ -782,90 +788,140 @@ SettingsMenuItem = memo(SettingsMenuItem)
 
 function MenuItem({
   beta,
-  icon,
+  icon: Icon,
+  activeIcon: ActiveIcon = Icon,
   label,
   count,
-  bold,
+  active,
   onPress,
   accessibilityHint,
-}: MenuItemProps) {
+}: {
+  beta?: boolean
+  icon: React.ComponentType<SVGIconProps>
+  activeIcon?: React.ComponentType<SVGIconProps>
+  label: string
+  count?: string
+  active: boolean
+  onPress: () => void
+  accessibilityHint?: string
+}) {
   const t = useTheme()
+  const c = m3e.colors(t)
   const {t: l} = useLingui()
   const accessibilityLabel = beta ? l`${label}, Beta` : label
+  const selection = useSharedValue(active ? 1 : 0)
+  const interaction = useSharedValue(0)
+
+  useEffect(() => {
+    selection.set(withSpring(active ? 1 : 0, m3e.motion.defaultSpatial))
+  }, [active, selection])
+
+  const indicatorStyle = useAnimatedStyle(() => {
+    const value = selection.get()
+    return {
+      opacity: interpolate(value, [0, 0.5], [0, 1], Extrapolation.CLAMP),
+      transform: [{scale: interpolate(value, [0, 1], [0.92, 1])}],
+    }
+  })
+
+  const stateLayerStyle = useAnimatedStyle(() => ({
+    opacity: interaction.get(),
+  }))
+
+  const setInteraction = (opacity: number, isEntering: boolean) => {
+    interaction.set(
+      withSpring(
+        opacity,
+        isEntering ? m3e.motion.fastEffects : m3e.motion.defaultEffects,
+      ),
+    )
+  }
+
+  const contentColor = active ? c.onSecondaryContainer : c.onSurfaceVariant
+  const CurrentIcon = active ? ActiveIcon : Icon
+
   return (
-    <Button
+    <Pressable
       testID={`menuItemButton-${label}`}
       onPress={onPress}
+      onPressIn={() => setInteraction(m3e.stateLayer.pressed, true)}
+      onPressOut={() => setInteraction(0, false)}
+      onHoverIn={() => setInteraction(m3e.stateLayer.hovered, true)}
+      onHoverOut={() => setInteraction(0, false)}
       accessibilityRole="tab"
+      accessibilityState={{selected: active}}
+      accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
-      label={accessibilityLabel}>
-      {({hovered, pressed}) => (
+      style={[
+        a.flex_row,
+        a.align_center,
+        a.gap_md,
+        {
+          height: 56,
+          marginHorizontal: 8,
+          paddingLeft: 12,
+          paddingRight: 20,
+        },
+      ]}>
+      <Animated.View
+        style={[
+          a.absolute,
+          a.inset_0,
+          {
+            borderRadius: m3e.shape.full,
+            backgroundColor: c.secondaryContainer,
+          },
+          indicatorStyle,
+        ]}
+      />
+      <Animated.View
+        style={[
+          a.absolute,
+          a.inset_0,
+          {borderRadius: m3e.shape.full, backgroundColor: contentColor},
+          stateLayerStyle,
+        ]}
+      />
+      <CurrentIcon width={24} style={{color: contentColor}} />
+      <View style={[a.flex_1, a.flex_row, a.align_center, a.gap_sm]}>
+        <Text
+          style={[
+            a.flex_shrink,
+            a.text_lg,
+            active ? a.font_bold : a.font_medium,
+            {color: contentColor},
+            web(a.leading_snug),
+          ]}
+          numberOfLines={1}>
+          {label}
+        </Text>
+        {beta && <BetaTag />}
+      </View>
+      {count ? (
         <View
           style={[
-            a.flex_1,
-            a.flex_row,
-            a.align_center,
-            a.gap_md,
-            a.py_md,
-            a.px_lg,
-            a.mx_sm,
             a.rounded_full,
-            bold && {backgroundColor: t.palette.primary_50},
-            (hovered || pressed) && !bold && t.atoms.bg_contrast_50,
+            a.align_center,
+            a.justify_center,
+            {
+              minWidth: 24,
+              height: 24,
+              paddingHorizontal: 8,
+              backgroundColor: c.primary,
+            },
           ]}>
-          <View style={[a.relative]}>
-            {icon}
-            {count ? (
-              <View
-                style={[
-                  a.absolute,
-                  a.inset_0,
-                  a.align_end,
-                  {top: -4, right: a.gap_sm.gap * -1},
-                ]}>
-                <View
-                  style={[
-                    a.rounded_full,
-                    {
-                      right: count.length === 1 ? 6 : 0,
-                      paddingHorizontal: 4,
-                      paddingVertical: 1,
-                      backgroundColor: t.palette.primary_500,
-                    },
-                  ]}>
-                  <Text
-                    style={[
-                      a.text_xs,
-                      a.leading_tight,
-                      a.font_semi_bold,
-                      {
-                        fontVariant: ['tabular-nums'],
-                        color: t.palette.white,
-                      },
-                    ]}
-                    numberOfLines={1}>
-                    {count}
-                  </Text>
-                </View>
-              </View>
-            ) : undefined}
-          </View>
-          <View style={[a.flex_1, a.flex_row, a.align_center, a.gap_sm]}>
-            <Text
-              style={[
-                a.flex_shrink,
-                a.text_2xl,
-                bold && a.font_bold,
-                web(a.leading_snug),
-              ]}
-              numberOfLines={1}>
-              {label}
-            </Text>
-            {beta && <BetaTag />}
-          </View>
+          <Text
+            style={[
+              a.text_xs,
+              a.font_semi_bold,
+              {fontVariant: ['tabular-nums'], color: c.onPrimary},
+            ]}
+            numberOfLines={1}>
+            {count}
+          </Text>
         </View>
-      )}
-    </Button>
+      ) : null}
+    </Pressable>
   )
 }
 

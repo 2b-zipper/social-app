@@ -440,7 +440,8 @@ function ComposerContainer({children}: {children: React.ReactNode}) {
               {width: `calc(100% - ${tokens.space.sm}px)` as '100%'},
             ],
           })}
-          key={t.name} // android does not update when you change the colors. sigh.
+          // Android does not update when you change the colors. sigh.
+          key={t.atoms.bg.backgroundColor}
           start={[0.5, 0]}
           end={[0.5, 1]}
           colors={[

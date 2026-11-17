@@ -1,6 +1,6 @@
 import '#/logger/sentry/setup'
 
-import {Fragment, useEffect, useMemo, useState} from 'react'
+import {Fragment, useDeferredValue, useEffect, useMemo, useState} from 'react'
 import {GestureHandlerRootView} from 'react-native-gesture-handler'
 import {KeyboardProvider as KeyboardControllerProvider} from 'react-native-keyboard-controller'
 import {
@@ -116,8 +116,8 @@ function InnerApp() {
   const [isReady, setIsReady] = useState(false)
   const {currentAccount} = useSession()
   const {resumeSession} = useSessionApi()
-  const theme = useColorModeTheme()
-  const materialYou = useMaterialYou()
+  const theme = useDeferredValue(useColorModeTheme())
+  const materialYou = useDeferredValue(useMaterialYou())
   const materialYouThemes = useMemo(
     () => (materialYou ? getMaterialYouThemes() : undefined),
     [materialYou],

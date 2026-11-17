@@ -1,8 +1,12 @@
 import {
+  createTheme,
   createThemes,
   DEFAULT_PALETTE,
   DEFAULT_SUBDUED_PALETTE,
+  type Palette,
 } from '@bsky.app/alf'
+
+import {darken} from './util/colorGeneration'
 
 export const M3_EXPRESSIVE_PALETTE = {
   ...DEFAULT_PALETTE,
@@ -68,7 +72,41 @@ export const M3_EXPRESSIVE_SUBDUED_PALETTE = {
   primary_975: '#030C36',
 }
 
-const DEFAULT_THEMES = createThemes({
+export function toAmoledPalette(palette: Palette): Palette {
+  return {
+    ...palette,
+    contrast_0: palette.black,
+    contrast_25: darken(palette.contrast_25, 3),
+    contrast_50: darken(palette.contrast_50, 3),
+    contrast_100: darken(palette.contrast_100, 2),
+  }
+}
+
+export function createAppThemes({
+  defaultPalette,
+  subduedPalette,
+}: {
+  defaultPalette: Palette
+  subduedPalette: Palette
+}) {
+  const {light, dark, dim} = createThemes({defaultPalette, subduedPalette})
+  const amoled = createTheme({
+    scheme: 'dark',
+    name: 'dark',
+    palette: toAmoledPalette(dark.palette),
+    options: {shadowOpacity: 0.4},
+  })
+  return {
+    lightPalette: light.palette,
+    darkPalette: amoled.palette,
+    dimPalette: dim.palette,
+    light,
+    dark: amoled,
+    dim,
+  }
+}
+
+const DEFAULT_THEMES = createAppThemes({
   defaultPalette: M3_EXPRESSIVE_PALETTE,
   subduedPalette: M3_EXPRESSIVE_SUBDUED_PALETTE,
 })

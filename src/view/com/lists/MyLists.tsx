@@ -2,7 +2,6 @@ import {type JSX, useCallback, useMemo, useState} from 'react'
 import {
   ActivityIndicator,
   FlatList as RNFlatList,
-  RefreshControl,
   type StyleProp,
   View,
   type ViewStyle,
@@ -10,7 +9,6 @@ import {
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 
-import {usePalette} from '#/lib/hooks/usePalette'
 import {cleanError} from '#/lib/strings/errors'
 import {s} from '#/lib/styles'
 import {logger} from '#/logger'
@@ -19,6 +17,7 @@ import {type MyListsFilter, useMyListsQuery} from '#/state/queries/my-lists'
 import {atoms as a, useTheme} from '#/alf'
 import {BulletList_Stroke1_Corner0_Rounded as ListIcon} from '#/components/icons/BulletList'
 import * as ListCard from '#/components/ListCard'
+import {RefreshControl} from '#/components/RefreshControl'
 import {Text} from '#/components/Typography'
 import {type app} from '#/lexicons'
 import {ErrorMessage} from '../util/error/ErrorMessage'
@@ -44,7 +43,6 @@ export function MyLists({
   ) => JSX.Element
   testID?: string
 }) {
-  const pal = usePalette('default')
   const t = useTheme()
   const {_} = useLingui()
   const moderationOpts = useModerationOpts()
@@ -174,12 +172,7 @@ export function MyLists({
             keyExtractor={item => (item.uri ? item.uri : item._reactKey)}
             renderItem={renderItemInner}
             refreshControl={
-              <RefreshControl
-                refreshing={isPTRing}
-                onRefresh={onRefresh}
-                tintColor={pal.colors.text}
-                titleColor={pal.colors.text}
-              />
+              <RefreshControl refreshing={isPTRing} onRefresh={onRefresh} />
             }
             contentContainerStyle={[s.contentContainer]}
             removeClippedSubviews={true}
