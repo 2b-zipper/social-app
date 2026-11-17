@@ -1,4 +1,4 @@
-import {useCallback, useMemo, useState} from 'react'
+import {useCallback, useEffect, useMemo, useState} from 'react'
 import {View} from 'react-native'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
@@ -10,8 +10,14 @@ import {
 } from '#/lib/routes/types'
 import {languageName, sanitizeAppLanguageSetting} from '#/locale/helpers'
 import {APP_LANGUAGES, LANGUAGES} from '#/locale/languages'
-import {useLanguagePrefs, useLanguagePrefsApi} from '#/state/preferences'
-import {atoms as a, web} from '#/alf'
+import {
+  type TranslationEngine,
+  useLanguagePrefs,
+  useLanguagePrefsApi,
+  useSetTranslationEngine,
+  useTranslationEngine,
+} from '#/state/preferences'
+import {atoms as a, useTheme, web} from '#/alf'
 import {Admonition} from '#/components/Admonition'
 import {Button} from '#/components/Button'
 import {useDialogControl} from '#/components/Dialog'
@@ -21,6 +27,7 @@ import {PlusLarge_Stroke2_Corner0_Rounded as PlusIcon} from '#/components/icons/
 import * as Layout from '#/components/Layout'
 import * as Select from '#/components/Select'
 import {Text} from '#/components/Typography'
+import {getGeminiTranslateStatus} from '../../../modules/expo-gemini-translate'
 import * as SettingsList from './components/SettingsList'
 
 const DEDUPED_LANGUAGES = LANGUAGES.filter(
@@ -31,8 +38,23 @@ const DEDUPED_LANGUAGES = LANGUAGES.filter(
 type Props = NativeStackScreenProps<CommonNavigatorParams, 'LanguageSettings'>
 export function LanguageSettingsScreen({}: Props) {
   const {_} = useLingui()
+  const t = useTheme()
   const langPrefs = useLanguagePrefs()
   const setLangPrefs = useLanguagePrefsApi()
+  const translationEngine = useTranslationEngine()
+  const setTranslationEngine = useSetTranslationEngine()
+  const [isGeminiAvailable, setIsGeminiAvailable] = useState(
+    translationEngine === 'gemini',
+  )
+  useEffect(() => {
+    let cancelled = false
+    void getGeminiTranslateStatus().then(status => {
+      if (!cancelled) setIsGeminiAvailable(status !== 'unavailable')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // changing langPrefs causes a slow re-render, so we use a local state copy
   // and update that first to drive the UI on this screen to keep it snappy
@@ -246,6 +268,62 @@ export function LanguageSettingsScreen({}: Props) {
                 }}
               />
             </View>
+          </SettingsList.Group>
+          <SettingsList.Divider />
+          <SettingsList.Group
+            iconInset={false}
+            contentContainerStyle={[a.gap_sm]}>
+            <SettingsList.ItemText>
+              <Trans>Translation</Trans>
+            </SettingsList.ItemText>
+            <Toggle.Group
+              label={_(msg`Translation engine`)}
+              type="radio"
+              values={[translationEngine]}
+              onChange={values => {
+                const next = values[0] as TranslationEngine | undefined
+                if (next) setTranslationEngine(next)
+              }}>
+              <View style={[a.w_full, a.gap_sm]}>
+                <Toggle.Item
+                  name="device"
+                  label={_(msg`On device`)}
+                  style={[a.w_full]}>
+                  <Toggle.Radio />
+                  <Toggle.LabelText style={[a.flex_1]}>
+                    <Trans>On device</Trans>
+                  </Toggle.LabelText>
+                </Toggle.Item>
+                {isGeminiAvailable && (
+                  <Toggle.Item
+                    name="gemini"
+                    label={_(msg`Gemini Nano`)}
+                    style={[a.w_full]}>
+                    <Toggle.Radio />
+                    <Toggle.LabelText style={[a.flex_1]}>
+                      <Trans>Gemini Nano</Trans>
+                    </Toggle.LabelText>
+                  </Toggle.Item>
+                )}
+                <Toggle.Item
+                  name="google"
+                  label={_(msg`Google Translate`)}
+                  style={[a.w_full]}>
+                  <Toggle.Radio />
+                  <Toggle.LabelText style={[a.flex_1]}>
+                    <Trans>Google Translate</Trans>
+                  </Toggle.LabelText>
+                </Toggle.Item>
+              </View>
+            </Toggle.Group>
+            <Text
+              style={[a.text_sm, a.leading_snug, t.atoms.text_contrast_medium]}>
+              <Trans>
+                On device translates offline but is the least accurate. Gemini
+                Nano also runs offline and reads more naturally, but is slower.
+                Google Translate opens the post in the Google Translate app.
+              </Trans>
+            </Text>
           </SettingsList.Group>
         </SettingsList.Container>
       </Layout.Content>

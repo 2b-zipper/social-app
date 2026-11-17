@@ -37,7 +37,6 @@ export interface TabBarProps {
   transparent?: boolean
 }
 
-const ITEM_PADDING = 10
 const CONTENT_PADDING = 6
 // How much of the previous/next item we're requiring
 // when deciding whether to scroll into view on tap.
@@ -65,7 +64,6 @@ export function TabBar({
   const containerSize = useSharedValue(0)
   const scrollX = useSharedValue(0)
   const layouts = useSharedValue<{x: number; width: number}[]>([])
-  const textLayouts = useSharedValue<{width: number}[]>([])
   const itemsLength = items.length
 
   const scrollToOffsetJS = useCallback(
@@ -229,87 +227,6 @@ export function TabBar({
     [layouts],
   )
 
-  const onTextLayout = useCallback(
-    (i: number, layout: {width: number}) => {
-      'worklet'
-      textLayouts.modify(ls => {
-        ls[i] = layout
-        return ls
-      })
-    },
-    [textLayouts],
-  )
-
-  const indicatorStyle = useAnimatedStyle(() => {
-    if (!_WORKLET) {
-      return {opacity: 0}
-    }
-    const layoutsValue = layouts.get()
-    const textLayoutsValue = textLayouts.get()
-    if (
-      layoutsValue.length !== itemsLength ||
-      textLayoutsValue.length !== itemsLength
-    ) {
-      return {
-        opacity: 0,
-      }
-    }
-
-    function getScaleX(index: number) {
-      const textWidth = textLayoutsValue[index].width
-      const itemWidth = layoutsValue[index].width
-      const minIndicatorWidth = 45
-      const maxIndicatorWidth = itemWidth - 2 * CONTENT_PADDING
-      const indicatorWidth = Math.min(
-        Math.max(minIndicatorWidth, textWidth),
-        maxIndicatorWidth,
-      )
-      return indicatorWidth / contentSize.get()
-    }
-
-    if (textLayoutsValue.length === 1) {
-      return {
-        opacity: 1,
-        transform: [
-          {
-            scaleX: getScaleX(0),
-          },
-        ],
-      }
-    }
-    return {
-      opacity: 1,
-      transform: [
-        {
-          translateX: interpolate(
-            dragProgress.get(),
-            layoutsValue.map((l, i) => {
-              'worklet'
-              return i
-            }),
-            layoutsValue.map(l => {
-              'worklet'
-              return l.x + l.width / 2 - contentSize.get() / 2
-            }),
-          ),
-        },
-        {
-          scaleX: interpolate(
-            dragProgress.get(),
-            textLayoutsValue.map((l, i) => {
-              'worklet'
-              return i
-            }),
-            textLayoutsValue.map((l, i) => {
-              'worklet'
-              return getScaleX(i)
-            }),
-          ),
-        },
-      ],
-    }
-  })
-
   const onPressItem = useCallback(
     (index: number) => {
       scheduleOnUI(onPressUIThread, index)
@@ -354,64 +271,50 @@ export function TabBar({
                 <TabBarItem
                   key={i}
                   index={i}
+                  isSelected={i === selectedPage}
                   testID={testID}
                   dragProgress={dragProgress}
                   item={item}
                   unread={unread?.[i]}
                   onPressItem={onPressItem}
                   onItemLayout={onItemLayout}
-                  onTextLayout={onTextLayout}
                   align={align}
                 />
               )
             })}
-            <Animated.View
-              style={[
-                indicatorStyle,
-                {
-                  position: 'absolute',
-                  left: 0,
-                  bottom: 0,
-                  right: 0,
-                  borderBottomWidth: 2,
-                  borderColor: t.palette.primary_500,
-                },
-              ]}
-            />
           </Animated.View>
         </ScrollView>
       </BlockDrawerGesture>
-      <View style={[t.atoms.bg_contrast_100, styles.outerBottomBorder]} />
     </Center>
   )
 }
 
 function TabBarItem({
   index,
+  isSelected,
   testID,
   dragProgress,
   item,
   unread,
   onPressItem,
   onItemLayout,
-  onTextLayout,
   align,
 }: {
   index: number
+  isSelected: boolean
   testID: string | undefined
   dragProgress: SharedValue<number>
   item: string
   unread?: boolean
   onPressItem: (index: number) => void
   onItemLayout: (index: number, layout: {x: number; width: number}) => void
-  onTextLayout: (index: number, layout: {width: number}) => void
   align: 'center' | 'left'
 }) {
   const t = useTheme()
   const {t: l} = useLingui()
-  const style = useAnimatedStyle(() => {
+  const textOpacityStyle = useAnimatedStyle(() => {
     if (!_WORKLET) {
-      return {opacity: 0.7}
+      return {opacity: isSelected ? 1 : 0.7}
     }
     return {
       opacity: interpolate(
@@ -423,18 +326,31 @@ function TabBarItem({
     }
   })
 
+  const pillStyle = useAnimatedStyle(() => {
+    if (!_WORKLET) {
+      return {opacity: isSelected ? 1 : 0}
+    }
+    const activeAmount = interpolate(
+      dragProgress.get(),
+      [index - 1, index, index + 1],
+      [0, 1, 0],
+      'clamp',
+    )
+    return {
+      opacity: activeAmount,
+      transform: [
+        {
+          scale: interpolate(activeAmount, [0, 1], [0.92, 1], 'clamp'),
+        },
+      ],
+    }
+  })
+
   const handleLayout = useCallback(
     (e: LayoutChangeEvent) => {
       scheduleOnUI(onItemLayout, index, e.nativeEvent.layout)
     },
     [index, onItemLayout],
-  )
-
-  const handleTextLayout = useCallback(
-    (e: LayoutChangeEvent) => {
-      scheduleOnUI(onTextLayout, index, e.nativeEvent.layout)
-    },
-    [index, onTextLayout],
   )
 
   return (
@@ -447,13 +363,26 @@ function TabBarItem({
       <PressableWithHover
         testID={`${testID}-selector-${index}`}
         style={[styles.item, align === 'center' && styles.itemCentered]}
-        hoverStyle={t.atoms.bg_contrast_25}
+        hoverStyle={a.bg_transparent}
         onPress={() => onPressItem(index)}
         accessibilityLabel={unread ? l`${item}, unread` : undefined}
         accessibilityHint=""
         accessibilityRole="tab">
-        <Animated.View style={[style, styles.itemInner]}>
-          <View style={unread !== undefined && {paddingHorizontal: 12}}>
+        <View style={[styles.itemInner, t.atoms.bg_contrast_25]}>
+          <Animated.View
+            style={[
+              a.absolute,
+              a.inset_0,
+              a.rounded_full,
+              {backgroundColor: t.palette.primary_100},
+              pillStyle,
+            ]}
+          />
+          <Animated.View
+            style={[
+              textOpacityStyle,
+              unread !== undefined && {paddingHorizontal: 12},
+            ]}>
             <Text
               emoji
               testID={testID ? `${testID}-${item}` : undefined}
@@ -462,8 +391,7 @@ function TabBarItem({
                 t.atoms.text,
                 a.text_md,
                 a.font_semi_bold,
-              ]}
-              onLayout={handleTextLayout}>
+              ]}>
               {item}
             </Text>
             {unread && (
@@ -481,8 +409,8 @@ function TabBarItem({
                 }}
               />
             )}
-          </View>
-        </Animated.View>
+          </Animated.View>
+        </View>
       </PressableWithHover>
     </View>
   )
@@ -507,29 +435,25 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   item: {
-    paddingTop: 10,
-    paddingHorizontal: ITEM_PADDING,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
     justifyContent: 'center',
   },
   itemCentered: {
     flexGrow: 1,
   },
   itemInner: {
+    position: 'relative',
     alignItems: 'center',
+    justifyContent: 'center',
     flexGrow: 1,
-    paddingBottom: 10,
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    overflow: 'hidden',
   },
   itemText: {
     lineHeight: 20,
     textAlign: 'center',
-  },
-  outerBottomBorder: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: '100%',
-    height: StyleSheet.hairlineWidth,
   },
 })

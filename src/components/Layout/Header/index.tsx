@@ -23,7 +23,6 @@ import {Button, ButtonIcon, type ButtonProps} from '#/components/Button'
 import {ArrowLeft_Stroke2_Corner0_Rounded as ArrowLeft} from '#/components/icons/Arrow'
 import {Menu_Stroke2_Corner0_Rounded as Menu} from '#/components/icons/Menu'
 import {
-  BUTTON_VISUAL_ALIGNMENT_OFFSET,
   CENTER_COLUMN_OFFSET,
   CENTER_COLUMN_WIDTH,
   HEADER_SLOT_SIZE,
@@ -145,16 +144,11 @@ export function BackButton({onPress, style, ...props}: Partial<ButtonProps>) {
       <Button
         label={_(msg`Go back`)}
         size="small"
-        variant="ghost"
         color="secondary"
-        shape="round"
+        shape="square"
         onPress={onPressBack}
         hitSlop={HEADER_BUTTON_HITSLOP}
-        style={[
-          {marginLeft: -BUTTON_VISUAL_ALIGNMENT_OFFSET},
-          a.bg_transparent,
-          style,
-        ]}
+        style={style}
         {...props}>
         <ButtonIcon icon={ArrowLeft} size="lg" />
       </Button>
@@ -179,15 +173,10 @@ export function MenuButton() {
       <Button
         label={_(msg`Open drawer menu`)}
         size="small"
-        variant="ghost"
         color="secondary"
         shape="square"
         onPress={onPress}
-        hitSlop={HEADER_BUTTON_HITSLOP}
-        style={[
-          {marginLeft: -BUTTON_VISUAL_ALIGNMENT_OFFSET},
-          a.bg_transparent,
-        ]}>
+        hitSlop={HEADER_BUTTON_HITSLOP}>
         <ButtonIcon icon={Menu} size="lg" />
       </Button>
     </Slot>

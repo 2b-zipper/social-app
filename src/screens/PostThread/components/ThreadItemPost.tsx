@@ -24,11 +24,7 @@ import {
   ThreadItemPostNumber,
   useHasThreadItemPostNumber,
 } from '#/screens/PostThread/components/ThreadItemPostNumber'
-import {
-  LINEAR_AVI_WIDTH,
-  OUTER_SPACE,
-  REPLY_LINE_WIDTH,
-} from '#/screens/PostThread/const'
+import {LINEAR_AVI_WIDTH, OUTER_SPACE} from '#/screens/PostThread/const'
 import {atoms as a, useTheme} from '#/alf'
 import {DebugFieldDisplay} from '#/components/DebugFieldDisplay'
 import {useInteractionState} from '#/components/hooks/useInteractionState'
@@ -71,7 +67,7 @@ export function ThreadItemPost({
   const postShadow = usePostShadow(item.value.post)
 
   if (postShadow === POST_TOMBSTONE) {
-    return <ThreadItemPostDeleted item={item} overrides={overrides} />
+    return <ThreadItemPostDeleted item={item} />
   }
 
   return (
@@ -87,14 +83,11 @@ export function ThreadItemPost({
   )
 }
 
-function ThreadItemPostDeleted({
-  item,
-  overrides,
-}: Pick<ThreadItemPostProps, 'item' | 'overrides'>) {
+function ThreadItemPostDeleted({item}: Pick<ThreadItemPostProps, 'item'>) {
   const t = useTheme()
 
   return (
-    <ThreadItemPostOuterWrapper item={item} overrides={overrides}>
+    <ThreadItemPostOuterWrapper item={item}>
       <ThreadItemPostParentReplyLine item={item} />
 
       <View
@@ -129,27 +122,43 @@ function ThreadItemPostDeleted({
 
 const ThreadItemPostOuterWrapper = memo(function ThreadItemPostOuterWrapper({
   item,
-  overrides,
+  enableHover = false,
   children,
-}: Pick<ThreadItemPostProps, 'item' | 'overrides'> & {
+}: Pick<ThreadItemPostProps, 'item'> & {
+  enableHover?: boolean
   children: ReactNode
 }) {
   const t = useTheme()
-  const showTopBorder =
-    !item.ui.showParentReplyLine && overrides?.topBorder !== true
+  const {
+    state: hover,
+    onIn: onHoverIn,
+    onOut: onHoverOut,
+  } = useInteractionState()
+  const isChainStart = !item.ui.showParentReplyLine
+  const isChainEnd =
+    !item.ui.showChildReplyLine && !item.ui.precedesChildReadMore
 
   return (
     <GalleryBleed>
       <View
+        onPointerEnter={enableHover ? onHoverIn : undefined}
+        onPointerLeave={enableHover ? onHoverOut : undefined}
         style={[
-          showTopBorder && [a.border_t, t.atoms.border_contrast_low],
-          {paddingHorizontal: OUTER_SPACE},
-          // If there's no next child, add a little padding to bottom
-          !item.ui.showChildReplyLine &&
-            !item.ui.precedesChildReadMore && {
-              paddingBottom: OUTER_SPACE / 2,
-            },
+          t.atoms.bg_contrast_25,
+          enableHover && a.pointer,
+          {
+            marginHorizontal: 8,
+            paddingHorizontal: OUTER_SPACE,
+            borderTopLeftRadius: isChainStart ? 22 : 6,
+            borderTopRightRadius: isChainStart ? 22 : 6,
+            borderBottomLeftRadius: isChainEnd ? 22 : 6,
+            borderBottomRightRadius: isChainEnd ? 22 : 6,
+            marginTop: isChainStart ? 4 : 1,
+            marginBottom: isChainEnd ? 4 : 1,
+            paddingBottom: isChainEnd ? 12 : 6,
+          },
         ]}>
+        {enableHover && <SubtleHover hover={hover} />}
         {children}
       </View>
     </GalleryBleed>
@@ -174,8 +183,9 @@ const ThreadItemPostParentReplyLine = memo(
                 a.flex_1,
                 a.mb_xs,
                 {
-                  width: REPLY_LINE_WIDTH,
-                  backgroundColor: t.atoms.border_contrast_low.borderColor,
+                  width: 2.5,
+                  borderRadius: 2,
+                  backgroundColor: t.palette.primary_200,
                 },
               ]}
             />
@@ -261,151 +271,132 @@ const ThreadItemPostInner = memo(function ThreadItemPostInner({
   const {isActive: live} = useActorStatus(post.author)
 
   return (
-    <SubtleHoverWrapper>
-      <ThreadItemPostOuterWrapper item={item} overrides={overrides}>
-        <PostHider
-          testID={`postThreadItem-by-${post.author.handle}`}
-          href={postHref}
-          disabled={overrides?.moderation === true}
-          modui={moderation.ui('contentList')}
-          hiderStyle={[a.pl_0, a.pr_2xs, a.bg_transparent]}
-          iconSize={LINEAR_AVI_WIDTH}
-          iconStyles={[a.mr_xs]}
-          profile={post.author}
-          interpretFilterAsBlur>
-          <ThreadItemPostParentReplyLine item={item} />
+    <ThreadItemPostOuterWrapper item={item} enableHover>
+      <PostHider
+        testID={`postThreadItem-by-${post.author.handle}`}
+        href={postHref}
+        disabled={overrides?.moderation === true}
+        modui={moderation.ui('contentList')}
+        hiderStyle={[a.pl_0, a.pr_2xs, a.bg_transparent]}
+        iconSize={LINEAR_AVI_WIDTH}
+        iconStyles={[a.mr_xs]}
+        profile={post.author}
+        interpretFilterAsBlur>
+        <ThreadItemPostParentReplyLine item={item} />
 
-          <View style={[a.flex_row, a.gap_md]}>
-            <View>
-              <PreviewableUserAvatar
-                size={LINEAR_AVI_WIDTH}
-                profile={post.author}
-                moderation={moderation.ui('avatar')}
-                type={post.author.associated?.labeler ? 'labeler' : 'user'}
-                live={live}
-              />
+        <View style={[a.flex_row, a.gap_md]}>
+          <View>
+            <PreviewableUserAvatar
+              size={LINEAR_AVI_WIDTH}
+              profile={post.author}
+              moderation={moderation.ui('avatar')}
+              type={post.author.associated?.labeler ? 'labeler' : 'user'}
+              live={live}
+            />
 
-              {(item.ui.showChildReplyLine ||
-                item.ui.precedesChildReadMore) && (
-                <View
-                  style={[
-                    a.mx_auto,
-                    a.mt_xs,
-                    a.flex_1,
-                    {
-                      width: REPLY_LINE_WIDTH,
-                      backgroundColor: t.atoms.border_contrast_low.borderColor,
-                    },
-                  ]}
-                />
-              )}
-            </View>
-
-            <View style={[a.flex_1]}>
-              <PostMeta
-                author={post.author}
-                moderation={moderation}
-                timestamp={post.indexedAt}
-                postHref={postHref}
+            {(item.ui.showChildReplyLine || item.ui.precedesChildReadMore) && (
+              <View
                 style={[
-                  a.pb_xs,
-                  maybeApplyGalleryOffsetStyles('meta', {
+                  a.mx_auto,
+                  a.mt_xs,
+                  a.flex_1,
+                  {
+                    width: 2.5,
+                    borderRadius: 2,
+                    backgroundColor: t.palette.primary_200,
+                  },
+                ]}
+              />
+            )}
+          </View>
+
+          <View style={[a.flex_1]}>
+            <PostMeta
+              author={post.author}
+              moderation={moderation}
+              timestamp={post.indexedAt}
+              postHref={postHref}
+              style={[
+                a.pb_xs,
+                maybeApplyGalleryOffsetStyles('meta', {
+                  post,
+                  modui: moderation.ui('contentList'),
+                  additionalCauses: additionalPostAlerts,
+                }),
+              ]}
+            />
+            <PostAlerts
+              post={post}
+              modui={moderation.ui('contentList')}
+              style={[a.pb_2xs]}
+              additionalCauses={additionalPostAlerts}
+            />
+            {richText?.text ? (
+              <View style={[a.mb_2xs]}>
+                <RichText
+                  enableTags
+                  value={richText}
+                  style={[a.flex_1, a.text_md]}
+                  numberOfLines={limitLines ? MAX_POST_LINES : undefined}
+                  authorHandle={post.author.handle}
+                  shouldProxyLinks={true}
+                  suffixOffset={POST_NUMBER_INLINE_OFFSET}
+                  suffix={
+                    !limitLines && showPostNumber ? (
+                      <ThreadItemPostNumber value={postNumbering} />
+                    ) : undefined
+                  }
+                />
+                {limitLines && (
+                  <View style={[a.flex_row, a.align_center, a.gap_xs]}>
+                    <ShowMoreTextButton
+                      style={[a.text_md]}
+                      onPress={onPressShowMore}
+                    />
+                    <ThreadItemPostNumber
+                      inline={false}
+                      value={postNumbering}
+                    />
+                  </View>
+                )}
+              </View>
+            ) : (
+              <ThreadItemPostNumber inline={false} value={postNumbering} />
+            )}
+            <TranslatedPost hideTranslateLink post={post} />
+            {post.embed && (
+              <View
+                style={[
+                  maybeApplyGalleryOffsetStyles('embed', {
                     post,
                     modui: moderation.ui('contentList'),
                     additionalCauses: additionalPostAlerts,
                   }),
-                ]}
-              />
-              <PostAlerts
-                post={post}
-                modui={moderation.ui('contentList')}
-                style={[a.pb_2xs]}
-                additionalCauses={additionalPostAlerts}
-              />
-              {richText?.text ? (
-                <View style={[a.mb_2xs]}>
-                  <RichText
-                    enableTags
-                    value={richText}
-                    style={[a.flex_1, a.text_md]}
-                    numberOfLines={limitLines ? MAX_POST_LINES : undefined}
-                    authorHandle={post.author.handle}
-                    shouldProxyLinks={true}
-                    suffixOffset={POST_NUMBER_INLINE_OFFSET}
-                    suffix={
-                      !limitLines && showPostNumber ? (
-                        <ThreadItemPostNumber value={postNumbering} />
-                      ) : undefined
-                    }
-                  />
-                  {limitLines && (
-                    <View style={[a.flex_row, a.align_center, a.gap_xs]}>
-                      <ShowMoreTextButton
-                        style={[a.text_md]}
-                        onPress={onPressShowMore}
-                      />
-                      <ThreadItemPostNumber
-                        inline={false}
-                        value={postNumbering}
-                      />
-                    </View>
-                  )}
-                </View>
-              ) : (
-                <ThreadItemPostNumber inline={false} value={postNumbering} />
-              )}
-              <TranslatedPost hideTranslateLink post={post} />
-              {post.embed && (
-                <View
-                  style={[
-                    maybeApplyGalleryOffsetStyles('embed', {
-                      post,
-                      modui: moderation.ui('contentList'),
-                      additionalCauses: additionalPostAlerts,
-                    }),
-                    a.pb_xs,
-                  ]}>
-                  <Embed
-                    embed={post.embed}
-                    moderation={moderation}
-                    viewContext={PostEmbedViewContext.Feed}
-                    post={post}
-                  />
-                </View>
-              )}
-              <PostControls
-                post={postShadow}
-                record={record}
-                richText={richText}
-                onPressReply={onPressReply}
-                logContext="PostThreadItem"
-                threadgateRecord={threadgateRecord}
-              />
-              <DebugFieldDisplay subject={post} />
-            </View>
+                  a.pb_xs,
+                ]}>
+                <Embed
+                  embed={post.embed}
+                  moderation={moderation}
+                  viewContext={PostEmbedViewContext.Feed}
+                  post={post}
+                />
+              </View>
+            )}
+            <PostControls
+              post={postShadow}
+              record={record}
+              richText={richText}
+              onPressReply={onPressReply}
+              logContext="PostThreadItem"
+              threadgateRecord={threadgateRecord}
+            />
+            <DebugFieldDisplay subject={post} />
           </View>
-        </PostHider>
-      </ThreadItemPostOuterWrapper>
-    </SubtleHoverWrapper>
+        </View>
+      </PostHider>
+    </ThreadItemPostOuterWrapper>
   )
 })
-
-function SubtleHoverWrapper({children}: {children: ReactNode}) {
-  const {
-    state: hover,
-    onIn: onHoverIn,
-    onOut: onHoverOut,
-  } = useInteractionState()
-  return (
-    <View
-      onPointerEnter={onHoverIn}
-      onPointerLeave={onHoverOut}
-      style={a.pointer}>
-      <SubtleHover hover={hover} />
-      {children}
-    </View>
-  )
-}
 
 export function ThreadItemPostSkeleton({index}: {index: number}) {
   const even = index % 2 === 0

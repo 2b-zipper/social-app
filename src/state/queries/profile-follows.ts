@@ -5,6 +5,7 @@ import {
   useInfiniteQuery,
 } from '@tanstack/react-query'
 
+import {withBlockBypass} from '#/lib/api/public-agent'
 import {STALE} from '#/state/queries'
 import {useAppviewClient} from '#/state/session'
 import {useAnalytics} from '#/analytics'
@@ -54,12 +55,16 @@ export function useProfileFollowsQuery(
        * undeclared params verbatim but rejects an undeclared key whose value
        * is `undefined`, hence the conditional spread.
        */
-      return await client.call(app.bsky.graph.getFollows, {
+      const params = {
         actor: did || '',
         limit: limit || PAGE_SIZE,
         cursor: pageParam,
         ...(sortParam ? {sort: sortParam} : {}),
-      } as app.bsky.graph.getFollows.$Params)
+      } as app.bsky.graph.getFollows.$Params
+      return await withBlockBypass(
+        () => client.call(app.bsky.graph.getFollows, params),
+        publicClient => publicClient.call(app.bsky.graph.getFollows, params),
+      )
     },
     initialPageParam: undefined,
     getNextPageParam: lastPage => lastPage.cursor,

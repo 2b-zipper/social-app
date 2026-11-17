@@ -58,6 +58,12 @@ export function NotificationItem({
       style={[
         hasDivider &&
           SHOW_ROW_BORDERS && [a.border_t, t.atoms.border_contrast_low],
+        {
+          marginHorizontal: 8,
+          marginVertical: 2,
+          borderRadius: 20,
+          overflow: 'hidden',
+        },
       ]}>
       <NotificationRow notification={notification} />
     </View>

@@ -139,11 +139,11 @@ export function TabPills({
    */
   const isDarkScheme = t.scheme === 'dark'
   const indicatorColor = isDarkScheme
-    ? t.palette.contrast_1000
-    : t.palette.contrast_50
+    ? t.palette.primary_200
+    : t.palette.primary_100
   const activeLabelColor = isDarkScheme
-    ? t.atoms.text_inverted.color
-    : t.atoms.text.color
+    ? t.palette.primary_950
+    : t.palette.primary_800
   const cleanupRef = useRef<(() => void) | null>(null)
   const isContinuouslyScrollingRef = useRef(false)
 

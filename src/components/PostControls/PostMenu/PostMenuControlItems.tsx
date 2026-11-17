@@ -9,6 +9,7 @@ import {shareUrl} from '#/lib/sharing'
 import {toShareUrl} from '#/lib/strings/url-helpers'
 import {type Shadow} from '#/state/cache/post-shadow'
 import {useFeedFeedbackContext} from '#/state/feed-feedback'
+import {useAllowBlockedInteractions} from '#/state/preferences'
 import {usePostRepostMutationQueue} from '#/state/queries/post'
 import {useRequireAuth} from '#/state/session'
 import {ArrowShareRight_Stroke2_Corner2_Rounded as ShareIcon} from '#/components/icons/ArrowShareRight'
@@ -62,6 +63,7 @@ export function PostMenuControlItems({
 
   const isReposted = Boolean(post.viewer?.repost)
   const embeddingDisabled = Boolean(post.viewer?.embeddingDisabled)
+  const allowBlockedInteractions = useAllowBlockedInteractions()
   const isBlocked = Boolean(
     post.author.viewer?.blocking ||
     post.author.viewer?.blockedBy ||
@@ -73,7 +75,7 @@ export function PostMenuControlItems({
   }
 
   const onRepost = async () => {
-    if (isBlocked) {
+    if (isBlocked && !allowBlockedInteractions) {
       showBlockedToast()
       return
     }
@@ -112,7 +114,7 @@ export function PostMenuControlItems({
   }
 
   const onQuote = () => {
-    if (isBlocked) {
+    if (isBlocked && !allowBlockedInteractions) {
       showBlockedToast()
       return
     }

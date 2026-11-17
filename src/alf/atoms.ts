@@ -10,6 +10,25 @@ const EXP_CURVE = 'cubic-bezier(0.16, 1, 0.3, 1)'
 export const atoms = {
   ...baseAtoms,
 
+  rounded_2xs: {
+    borderRadius: 4,
+  },
+  rounded_xs: {
+    borderRadius: 8,
+  },
+  rounded_sm: {
+    borderRadius: 12,
+  },
+  rounded_md: {
+    borderRadius: 16,
+  },
+  rounded_lg: {
+    borderRadius: 24,
+  },
+  rounded_xl: {
+    borderRadius: 28,
+  },
+
   h_full_vh: web({
     height: '100vh',
   }),
@@ -51,29 +70,29 @@ export const atoms = {
     transitionProperty: 'none',
   }),
   transition_timing_default: web({
-    transitionTimingFunction: 'cubic-bezier(0.17, 0.73, 0.14, 1)',
-    transitionDuration: '100ms',
+    transitionTimingFunction: 'cubic-bezier(0.2, 0, 0, 1)',
+    transitionDuration: '200ms',
   }),
   transition_all: web({
     transitionProperty: 'all',
-    transitionTimingFunction: 'cubic-bezier(0.17, 0.73, 0.14, 1)',
-    transitionDuration: '100ms',
+    transitionTimingFunction: 'cubic-bezier(0.2, 0, 0, 1)',
+    transitionDuration: '200ms',
   }),
   transition_color: web({
     transitionProperty:
       'color, background-color, border-color, text-decoration-color, fill, stroke',
-    transitionTimingFunction: 'cubic-bezier(0.17, 0.73, 0.14, 1)',
-    transitionDuration: '100ms',
+    transitionTimingFunction: 'cubic-bezier(0.2, 0, 0, 1)',
+    transitionDuration: '200ms',
   }),
   transition_opacity: web({
     transitionProperty: 'opacity',
-    transitionTimingFunction: 'cubic-bezier(0.17, 0.73, 0.14, 1)',
-    transitionDuration: '100ms',
+    transitionTimingFunction: 'cubic-bezier(0.2, 0, 0, 1)',
+    transitionDuration: '200ms',
   }),
   transition_transform: web({
     transitionProperty: 'transform',
-    transitionTimingFunction: 'cubic-bezier(0.17, 0.73, 0.14, 1)',
-    transitionDuration: '100ms',
+    transitionTimingFunction: 'cubic-bezier(0.2, 0, 0, 1)',
+    transitionDuration: '200ms',
   }),
   transition_delay_50ms: web({
     transitionDelay: '50ms',

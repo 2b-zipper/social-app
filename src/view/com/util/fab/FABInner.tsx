@@ -40,7 +40,7 @@ export function FABInner({testID, icon, onPress, style, ...props}: FABProps) {
 
   const tabletSpacing = gtMobile
     ? {right: 50, bottom: 50}
-    : {right: 24, bottom: clamp(insets.bottom, 15, 60) + 15}
+    : {right: 24, bottom: clamp(insets.bottom, 12, 34) + 68}
 
   return (
     <Animated.View
@@ -71,9 +71,11 @@ export function FABInner({testID, icon, onPress, style, ...props}: FABProps) {
         })}
         targetScale={0.9}
         style={[
-          a.rounded_full,
+          a.curve_continuous,
           size,
           {backgroundColor: t.palette.primary_500},
+          t.atoms.shadow_md,
+          {elevation: 6},
           a.align_center,
           a.justify_center,
           style,
@@ -87,14 +89,14 @@ export function FABInner({testID, icon, onPress, style, ...props}: FABProps) {
 
 const styles = StyleSheet.create({
   sizeRegular: {
-    width: 56,
-    height: 56,
-    borderRadius: 30,
+    width: 58,
+    height: 58,
+    borderRadius: 20,
   },
   sizeLarge: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 72,
+    height: 72,
+    borderRadius: 24,
   },
   outer: {
     // @ts-expect-error web-only

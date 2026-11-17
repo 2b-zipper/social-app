@@ -757,9 +757,7 @@ export function Explore({
       }
       switch (item.type) {
         case 'topBorder':
-          return (
-            <View style={[a.w_full, t.atoms.border_contrast_low, a.border_t]} />
-          )
+          return null
         case 'header': {
           return (
             <ModuleHeader.Container bottomBorder={item.bottomBorder}>
@@ -834,10 +832,14 @@ export function Explore({
           return (
             <View
               style={[
-                a.border_t,
-                t.atoms.border_contrast_low,
+                t.atoms.bg_contrast_25,
                 a.px_lg,
                 a.py_lg,
+                {
+                  marginHorizontal: 8,
+                  marginVertical: 2,
+                  borderRadius: 20,
+                },
               ]}>
               <FeedCard.Default
                 view={item.feed}
@@ -899,7 +901,17 @@ export function Explore({
         }
         case 'loadMore': {
           return (
-            <View style={[a.border_t, t.atoms.border_contrast_low]}>
+            <View
+              style={[
+                t.atoms.bg_contrast_50,
+                a.overflow_hidden,
+                {
+                  marginHorizontal: 8,
+                  marginTop: 2,
+                  marginBottom: 8,
+                  borderRadius: 20,
+                },
+              ]}>
               <LoadMore item={item} />
             </View>
           )

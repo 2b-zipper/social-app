@@ -48,8 +48,8 @@ export function useItemContext() {
  */
 export function useRowBackgroundColor(isRead: boolean) {
   const t = useTheme()
-  if (isRead) return t.atoms.bg.backgroundColor
-  return t.name === 'dim' ? '#071F40' : t.palette.primary_25
+  if (isRead) return t.atoms.bg_contrast_25.backgroundColor
+  return t.name === 'dim' ? '#071F40' : t.palette.primary_50
 }
 
 /**

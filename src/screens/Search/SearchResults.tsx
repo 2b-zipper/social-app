@@ -11,6 +11,7 @@ import {
   shouldRetryError,
 } from '#/lib/strings/errors'
 import {augmentSearchQuery} from '#/lib/strings/helpers'
+import {useBypassBlocks} from '#/state/preferences'
 import {useActorSearch} from '#/state/queries/actor-search'
 import {usePopularFeedsSearch} from '#/state/queries/feed'
 import {useSearchPostsV2Query} from '#/state/queries/search-posts-v2'
@@ -516,6 +517,7 @@ let SearchScreenUserResults = ({
   const ax = useAnalytics()
   const {t: l} = useLingui()
   const {hasSession} = useSession()
+  const bypassBlocks = useBypassBlocks()
   const [isPTR, setIsPTR] = useState(false)
 
   const {
@@ -530,6 +532,7 @@ let SearchScreenUserResults = ({
   } = useActorSearch({
     query,
     enabled: active,
+    includeBlocked: hasSession && bypassBlocks,
   })
 
   const onPullToRefresh = useCallback(async () => {

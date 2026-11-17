@@ -11,7 +11,6 @@ import {PressableScale} from '#/lib/custom-animations/PressableScale'
 import {BOTTOM_BAR_AVI} from '#/lib/demo'
 import {useHaptics} from '#/lib/haptics'
 import {useDedupe} from '#/lib/hooks/useDedupe'
-import {useHideBottomBarBorder} from '#/lib/hooks/useHideBottomBarBorder'
 import {useMinimalShellFooterTransform} from '#/lib/hooks/useMinimalShellTransform'
 import {useNavigationTabState} from '#/lib/hooks/useNavigationTabState'
 import {clamp} from '#/lib/numbers'
@@ -83,7 +82,6 @@ export function BottomBar({navigation}: BottomTabBarProps) {
   const accountSwitchControl = useDialogControl()
   const messagesMenuControl = Menu.useMenuControl()
   const haptics = useHaptics()
-  const hideBorder = useHideBottomBarBorder()
   const iconWidth = 28
 
   const showSignIn = useCallback(() => {
@@ -167,25 +165,39 @@ export function BottomBar({navigation}: BottomTabBarProps) {
       <Animated.View
         style={[
           styles.bottomBar,
-          t.atoms.bg,
-          hideBorder
-            ? {borderColor: t.atoms.bg.backgroundColor}
-            : t.atoms.border_contrast_low,
-          {paddingBottom: clamp(safeAreaInsets.bottom, 15, 60)},
+          t.atoms.bg_contrast_50,
+          t.atoms.shadow_md,
+          {
+            left: 14,
+            right: 14,
+            bottom: clamp(safeAreaInsets.bottom, 12, 34),
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: t.palette.contrast_100,
+            paddingVertical: 6,
+            elevation: 12,
+          },
           footerMinimalShellTransform,
         ]}
         onLayout={e => {
-          footerHeight.set(e.nativeEvent.layout.height)
+          footerHeight.set(
+            e.nativeEvent.layout.height + clamp(safeAreaInsets.bottom, 12, 34),
+          )
         }}>
         {hasSession ? (
           <>
             <Btn
               testID="bottomBarHomeBtn"
+              active={isAtHome}
               icon={
                 isAtHome ? (
                   <HomeFilled
                     width={iconWidth + 1}
-                    style={[styles.ctrlIcon, t.atoms.text, styles.homeIcon]}
+                    style={[
+                      styles.ctrlIcon,
+                      {color: t.palette.primary_700},
+                      styles.homeIcon,
+                    ]}
                   />
                 ) : (
                   <Home
@@ -201,11 +213,16 @@ export function BottomBar({navigation}: BottomTabBarProps) {
               accessibilityHint=""
             />
             <Btn
+              active={isAtSearch}
               icon={
                 isAtSearch ? (
                   <MagnifyingGlassFilled
                     width={iconWidth + 2}
-                    style={[styles.ctrlIcon, t.atoms.text, styles.searchIcon]}
+                    style={[
+                      styles.ctrlIcon,
+                      {color: t.palette.primary_700},
+                      styles.searchIcon,
+                    ]}
                   />
                 ) : (
                   <MagnifyingGlass
@@ -222,11 +239,16 @@ export function BottomBar({navigation}: BottomTabBarProps) {
             />
             <Btn
               testID="bottomBarMessagesBtn"
+              active={isAtMessages}
               icon={
                 isAtMessages ? (
                   <MessageFilled
                     width={iconWidth - 1}
-                    style={[styles.ctrlIcon, t.atoms.text, styles.feedsIcon]}
+                    style={[
+                      styles.ctrlIcon,
+                      {color: t.palette.primary_700},
+                      styles.feedsIcon,
+                    ]}
                   />
                 ) : (
                   <Message
@@ -263,11 +285,16 @@ export function BottomBar({navigation}: BottomTabBarProps) {
             />
             <Btn
               testID="bottomBarNotificationsBtn"
+              active={isAtNotifications}
               icon={
                 isAtNotifications ? (
                   <BellFilled
                     width={iconWidth}
-                    style={[styles.ctrlIcon, t.atoms.text, styles.bellIcon]}
+                    style={[
+                      styles.ctrlIcon,
+                      {color: t.palette.primary_700},
+                      styles.bellIcon,
+                    ]}
                   />
                 ) : (
                   <Bell
@@ -294,6 +321,7 @@ export function BottomBar({navigation}: BottomTabBarProps) {
             />
             <Btn
               testID="bottomBarProfileBtn"
+              active={isAtMyProfile}
               icon={
                 <View style={styles.ctrlIconSizingWrapper}>
                   <View
@@ -303,8 +331,8 @@ export function BottomBar({navigation}: BottomTabBarProps) {
                       isAtMyProfile && [
                         isLabeler ? styles.onProfileSquare : styles.onProfile,
                         {
-                          borderColor: t.atoms.text.color,
-                          borderWidth: live ? 0 : 1,
+                          borderColor: t.palette.primary_600,
+                          borderWidth: live ? 0 : 1.5,
                         },
                       ],
                     ]}>
@@ -335,8 +363,8 @@ export function BottomBar({navigation}: BottomTabBarProps) {
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                paddingTop: 14,
-                paddingBottom: 2,
+                paddingTop: 6,
+                paddingBottom: 6,
                 paddingLeft: 14,
                 paddingRight: 6,
                 gap: 8,
@@ -385,6 +413,7 @@ interface BtnProps extends Pick<
   | 'accessibilityLabel'
 > {
   testID?: string
+  active?: boolean
   icon: JSX.Element
   notificationCount?: string
   hasNew?: boolean
@@ -394,6 +423,7 @@ interface BtnProps extends Pick<
 
 function Btn({
   testID,
+  active,
   icon,
   hasNew,
   notificationCount,
@@ -408,7 +438,11 @@ function Btn({
   return (
     <PressableScale
       testID={testID}
-      style={[styles.ctrl, a.flex_1]}
+      style={[
+        styles.ctrl,
+        a.flex_1,
+        {paddingVertical: 4, justifyContent: 'center'},
+      ]}
       onPress={onPress}
       onLongPress={onLongPress}
       accessible={accessible}
@@ -417,7 +451,13 @@ function Btn({
       targetScale={0.8}
       accessibilityLargeContentTitle={accessibilityLabel}
       accessibilityShowsLargeContentViewer>
-      {icon}
+      <View
+        style={[
+          styles.pillIndicator,
+          active && {backgroundColor: t.palette.primary_100},
+        ]}>
+        {icon}
+      </View>
       {notificationCount ? (
         <View
           style={[

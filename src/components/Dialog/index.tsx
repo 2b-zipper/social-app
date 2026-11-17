@@ -297,7 +297,7 @@ export function Outer({
     <BottomSheet
       ref={ref}
       // device-bezel radius when undefined
-      cornerRadius={IS_LIQUID_GLASS ? undefined : 20}
+      cornerRadius={IS_LIQUID_GLASS ? undefined : 28}
       backgroundColor={t.atoms.bg.backgroundColor}
       colorScheme={t.scheme}
       {...nativeOptions}
@@ -614,11 +614,11 @@ export function Handle({
         {!isNativePopover && (
           <View
             style={[
-              a.rounded_sm,
               {
-                top: tokens.space._2xl / 2 - 2.5,
-                width: 35,
-                height: 5,
+                top: tokens.space._2xl / 2 - 2,
+                width: 36,
+                height: 4,
+                borderRadius: 2,
                 alignSelf: 'center',
               },
               difference
@@ -631,7 +631,7 @@ export function Handle({
                   }
                 : {
                     backgroundColor: fill || t.palette.contrast_975,
-                    opacity: 0.5,
+                    opacity: 0.4,
                   },
             ]}
           />

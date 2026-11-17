@@ -807,8 +807,11 @@ function MenuItem({
             a.align_center,
             a.gap_md,
             a.py_md,
-            a.px_xl,
-            (hovered || pressed) && t.atoms.bg_contrast_25,
+            a.px_lg,
+            a.mx_sm,
+            a.rounded_full,
+            bold && {backgroundColor: t.palette.primary_50},
+            (hovered || pressed) && !bold && t.atoms.bg_contrast_50,
           ]}>
           <View style={[a.relative]}>
             {icon}

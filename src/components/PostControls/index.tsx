@@ -7,8 +7,10 @@ import {useLingui} from '@lingui/react/macro'
 import {CountWheel} from '#/lib/custom-animations/CountWheel'
 import {AnimatedLikeIcon} from '#/lib/custom-animations/LikeIcon'
 import {useOpenComposer} from '#/lib/hooks/useOpenComposer'
+import {isBypassedBlockPost} from '#/lib/moderation/bypassBlocks'
 import {type Shadow} from '#/state/cache/types'
 import {useFeedFeedbackContext} from '#/state/feed-feedback'
+import {useAllowBlockedInteractions} from '#/state/preferences'
 import {
   usePostLikeMutationQueue,
   usePostRepostMutationQueue,
@@ -50,7 +52,7 @@ let PostControls = ({
   onShowLess,
   viaRepost,
   variant,
-  forceGoogleTranslate = false,
+  forceGoogleTranslate,
 }: {
   big?: boolean
   post: Shadow<app.bsky.feed.defs.PostView>
@@ -91,16 +93,19 @@ let PostControls = ({
   const isBlocked = Boolean(
     post.author.viewer?.blocking ||
     post.author.viewer?.blockedBy ||
-    post.author.viewer?.blockingByList,
+    post.author.viewer?.blockingByList ||
+    isBypassedBlockPost(post),
   )
-  const replyDisabled = post.viewer?.replyDisabled
+  const allowBlockedInteractions = useAllowBlockedInteractions()
+  const isInteractionBlocked = isBlocked && !allowBlockedInteractions
+  const replyDisabled = post.viewer?.replyDisabled || isBlocked
   const {gtPhone} = useBreakpoints()
   const formatPostStatCount = useFormatPostStatCount()
 
   const [hasLikeIconBeenToggled, setHasLikeIconBeenToggled] = useState(false)
 
   const onPressToggleLike = async () => {
-    if (isBlocked) {
+    if (isInteractionBlocked) {
       Toast.show(l`Cannot interact with a blocked user`, {
         type: 'warning',
       })
@@ -131,7 +136,7 @@ let PostControls = ({
   }
 
   const onRepost = async () => {
-    if (isBlocked) {
+    if (isInteractionBlocked) {
       Toast.show(l`Cannot interact with a blocked user`, {
         type: 'warning',
       })
@@ -160,7 +165,7 @@ let PostControls = ({
   }
 
   const onQuote = () => {
-    if (isBlocked) {
+    if (isInteractionBlocked) {
       Toast.show(l`Cannot interact with a blocked user`, {
         type: 'warning',
       })
@@ -207,8 +212,8 @@ let PostControls = ({
         a.flex_row,
         a.justify_between,
         a.align_center,
-        !big && a.pt_2xs,
-        a.gap_md,
+        !big && a.pt_xs,
+        a.gap_xs,
         style,
       ]}>
       <View style={[a.flex_row, a.flex_1, {maxWidth: 320}]}>
@@ -216,7 +221,7 @@ let PostControls = ({
           style={[
             a.flex_1,
             a.align_start,
-            {marginLeft: big ? -2 : -6},
+            {marginLeft: 0},
             replyDisabled ? {opacity: 0.6} : undefined,
           ]}>
           <PostControlButton
@@ -252,7 +257,13 @@ let PostControls = ({
             )}
           </PostControlButton>
         </View>
-        <View style={[a.flex_1, a.align_start]}>
+        <View
+          style={[
+            a.flex_1,
+            a.align_start,
+            isInteractionBlocked && {opacity: 0.5},
+          ]}
+          pointerEvents={isInteractionBlocked ? 'none' : 'auto'}>
           <RepostButton
             isReposted={!!post.viewer?.repost}
             repostCount={(post.repostCount ?? 0) + (post.quoteCount ?? 0)}
@@ -262,7 +273,13 @@ let PostControls = ({
             embeddingDisabled={Boolean(post.viewer?.embeddingDisabled)}
           />
         </View>
-        <View style={[a.flex_1, a.align_start]}>
+        <View
+          style={[
+            a.flex_1,
+            a.align_start,
+            isInteractionBlocked && {opacity: 0.5},
+          ]}
+          pointerEvents={isInteractionBlocked ? 'none' : 'auto'}>
           <PostControlButton
             testID="likeBtn"
             big={big}
@@ -309,14 +326,18 @@ let PostControls = ({
         <View />
       </View>
       <View style={[a.flex_row, a.justify_end, secondaryControlSpacingStyles]}>
-        <BookmarkButton
-          post={post}
-          big={big}
-          logContext={logContext}
-          hitSlop={{
-            right: secondaryControlSpacingStyles.gap / 2,
-          }}
-        />
+        <View
+          style={[isInteractionBlocked && {opacity: 0.5}]}
+          pointerEvents={isInteractionBlocked ? 'none' : 'auto'}>
+          <BookmarkButton
+            post={post}
+            big={big}
+            logContext={logContext}
+            hitSlop={{
+              right: secondaryControlSpacingStyles.gap / 2,
+            }}
+          />
+        </View>
         <ShareMenuButton
           testID="postShareBtn"
           post={post}
@@ -347,7 +368,7 @@ let PostControls = ({
             left: secondaryControlSpacingStyles.gap / 2,
           }}
           logContext={logContext}
-          forceGoogleTranslate={forceGoogleTranslate}
+          forceGoogleTranslate={forceGoogleTranslate ?? false}
         />
       </View>
     </View>

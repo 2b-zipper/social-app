@@ -24,11 +24,13 @@ import {
 } from '@tanstack/react-query'
 
 import {uploadBlob} from '#/lib/api'
+import {getPublicClient} from '#/lib/api/public-agent'
 import {until} from '#/lib/async/until'
 import {useToggleMutationQueue} from '#/lib/hooks/useToggleMutationQueue'
 import {updateProfileShadow} from '#/state/cache/profile-shadow'
 import {type Shadow} from '#/state/cache/types'
 import {type ImageMeta} from '#/state/gallery'
+import * as persisted from '#/state/persisted'
 import {STALE} from '#/state/queries'
 import {resetProfilePostsQueries} from '#/state/queries/post-feed'
 import {RQKEY as PROFILE_FOLLOWS_RQKEY} from '#/state/queries/profile-follows'
@@ -84,9 +86,24 @@ export function useProfileQuery({
     refetchOnWindowFocus: true,
     queryKey: RQKEY(did ?? ''),
     queryFn: async () => {
-      return await client.call(app.bsky.actor.getProfile, {
-        actor: (did ?? '') as AtIdentifierString,
-      })
+      const params = {actor: (did ?? '') as AtIdentifierString}
+      const data = await client.call(app.bsky.actor.getProfile, params)
+
+      const viewer = data.viewer
+      const isBlocked =
+        viewer?.blocking || viewer?.blockedBy || viewer?.blockingByList
+      if (!isBlocked || !persisted.get('bypassBlocks')) {
+        return data
+      }
+      try {
+        const publicData = await getPublicClient().call(
+          app.bsky.actor.getProfile,
+          params,
+        )
+        return {...publicData, viewer}
+      } catch {
+        return data
+      }
     },
     placeholderData: () => {
       if (!did) return

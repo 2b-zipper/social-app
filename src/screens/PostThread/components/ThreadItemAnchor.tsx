@@ -6,6 +6,7 @@ import {Plural, Trans, useLingui} from '@lingui/react/macro'
 
 import {useNonReactiveCallback} from '#/lib/hooks/useNonReactiveCallback'
 import {useOpenComposer} from '#/lib/hooks/useOpenComposer'
+import {getPostVia} from '#/lib/post-via'
 import {makeProfileLink} from '#/lib/routes/links'
 import {sanitizeDisplayName} from '#/lib/strings/display-names'
 import {sanitizeHandle} from '#/lib/strings/handles'
@@ -153,7 +154,7 @@ function ThreadItemAnchorParentReplyLine({isRoot}: {isRoot: boolean}) {
               marginLeft: 'auto',
               marginRight: 'auto',
               flexGrow: 1,
-              backgroundColor: t.atoms.border_contrast_low.borderColor,
+              backgroundColor: t.palette.primary_200,
             },
           ]}
         />
@@ -318,10 +319,15 @@ const ThreadItemAnchorInner = memo(function ThreadItemAnchorInner({
         <View
           testID={`postThreadItem-by-${post.author.handle}`}
           style={[
+            t.atoms.bg_contrast_25,
             {
+              marginHorizontal: 8,
+              marginVertical: 4,
               paddingHorizontal: OUTER_SPACE,
+              paddingTop: 14,
+              paddingBottom: 8,
+              borderRadius: 24,
             },
-            isRoot && [a.pt_lg],
           ]}>
           <View style={[a.flex_row, a.gap_md, a.pb_md]}>
             <View collapsable={false}>
@@ -447,14 +453,15 @@ const ThreadItemAnchorInner = memo(function ThreadItemAnchorInner({
                   a.flex_row,
                   a.flex_wrap,
                   a.align_center,
+                  t.atoms.bg_contrast_50,
+                  a.rounded_md,
+                  a.mt_md,
+                  a.px_md,
+                  a.py_sm,
                   {
                     rowGap: a.gap_sm.gap,
                     columnGap: a.gap_lg.gap,
                   },
-                  a.border_t,
-                  a.mt_md,
-                  a.py_sm,
-                  t.atoms.border_contrast_low,
                 ]}>
                 {post.repostCount != null && post.repostCount !== 0 ? (
                   <Link to={repostsHref} label={l`Reposts of this post`}>
@@ -524,7 +531,7 @@ const ThreadItemAnchorInner = memo(function ThreadItemAnchorInner({
               style={[
                 a.pb_2xs,
                 {
-                  marginLeft: -5,
+                  marginLeft: 0,
                 },
               ]}>
               <FeedFeedbackProvider value={feedFeedback}>
@@ -560,6 +567,7 @@ function ExpandedPostDetails({
   const t = useTheme()
   const {i18n} = useLingui()
   const isRootPost = !('reply' in post.record)
+  const via = getPostVia(post.record)
 
   return (
     <View style={[a.gap_md, a.pt_md, a.align_start]}>
@@ -573,8 +581,17 @@ function ExpandedPostDetails({
           a.gap_md,
         ]}>
         <Text
+          emoji
           style={[a.text_sm, t.atoms.text_contrast_medium, {maxWidth: '100%'}]}>
           {niceDate(i18n, post.indexedAt, 'dot separated')}
+          {via && (
+            <>
+              {' · '}
+              <Trans comment="Names the app a post was made with, e.g. “via Klearsky”">
+                via {via}
+              </Trans>
+            </>
+          )}
         </Text>
         {isRootPost && (
           <View style={{marginLeft: 'auto'}}>

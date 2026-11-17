@@ -13,6 +13,7 @@ import {useLingui} from '@lingui/react/macro'
 import {useNavigation} from '@react-navigation/native'
 
 import {DISCOVER_DEBUG_DIDS} from '#/lib/constants'
+import {useOpenComposer} from '#/lib/hooks/useOpenComposer'
 import {useOpenLink} from '#/lib/hooks/useOpenLink'
 import {getCurrentRoute} from '#/lib/routes/helpers'
 import {makeProfileLink} from '#/lib/routes/links'
@@ -72,6 +73,7 @@ import {
   Mute_Stroke2_Corner0_Rounded as Mute,
   Mute_Stroke2_Corner0_Rounded as MuteIcon,
 } from '#/components/icons/Mute'
+import {Pencil_Stroke2_Corner0_Rounded as Pencil} from '#/components/icons/Pencil'
 import {PersonX_Stroke2_Corner0_Rounded as PersonX} from '#/components/icons/Person'
 import {Pin_Stroke2_Corner0_Rounded as PinIcon} from '#/components/icons/Pin'
 import {SettingsGear2_Stroke2_Corner0_Rounded as Gear} from '#/components/icons/SettingsGear2'
@@ -94,6 +96,7 @@ import {useAnalytics} from '#/analytics'
 import {IS_INTERNAL} from '#/env'
 import {type app} from '#/lexicons'
 import {PostMenuControlItems} from './PostMenuControlItems'
+import {hasVideo, useGatherReEditContent} from './useReEditContent'
 
 let PostMenuItems = ({
   post,
@@ -132,6 +135,8 @@ let PostMenuItems = ({
   const ax = useAnalytics()
   const langPrefs = useLanguagePrefs()
   const {mutateAsync: deletePostMutate} = usePostDeleteMutation()
+  const {openComposer} = useOpenComposer()
+  const gatherReEditContent = useGatherReEditContent()
   const {mutateAsync: pinPostMutate, isPending: isPinPending} =
     usePinnedPostMutation()
   const requireSignIn = useRequireAuth()
@@ -148,6 +153,7 @@ let PostMenuItems = ({
   const blockPromptControl = useDialogControl()
   const reportDialogControl = useReportDialogControl()
   const deletePromptControl = useDialogControl()
+  const reEditPromptControl = useDialogControl()
   const hidePromptControl = useDialogControl()
   const postInteractionSettingsDialogControl = useDialogControl()
   const quotePostDetachConfirmControl = useDialogControl()
@@ -197,26 +203,29 @@ let PostMenuItems = ({
     return makeProfileLink(postAuthor, 'post', urip.rkey)
   }, [postUri, postAuthor])
 
+  const leaveDeletedPostThread = () => {
+    const route = getCurrentRoute(navigation.getState())
+    if (route.name === 'PostThread') {
+      const params = route.params as CommonNavigatorParams['PostThread']
+      if (
+        currentAccount &&
+        isAuthor &&
+        (params.name === currentAccount.handle ||
+          params.name === currentAccount.did)
+      ) {
+        const currentHref = makeProfileLink(postAuthor, 'post', params.rkey)
+        if (currentHref === href && navigation.canGoBack()) {
+          navigation.goBack()
+        }
+      }
+    }
+  }
+
   const onDeletePost = () => {
     deletePostMutate({uri: postUri}).then(
       () => {
         Toast.show(l({message: 'Post deleted', context: 'toast'}))
-
-        const route = getCurrentRoute(navigation.getState())
-        if (route.name === 'PostThread') {
-          const params = route.params as CommonNavigatorParams['PostThread']
-          if (
-            currentAccount &&
-            isAuthor &&
-            (params.name === currentAccount.handle ||
-              params.name === currentAccount.did)
-          ) {
-            const currentHref = makeProfileLink(postAuthor, 'post', params.rkey)
-            if (currentHref === href && navigation.canGoBack()) {
-              navigation.goBack()
-            }
-          }
-        }
+        leaveDeletedPostThread()
       },
       e => {
         logger.error('Failed to delete post', {message: e})
@@ -225,6 +234,30 @@ let PostMenuItems = ({
         })
       },
     )
+  }
+
+  const onDeleteAndReEdit = async () => {
+    let opts
+    try {
+      opts = await gatherReEditContent(post, record)
+    } catch (e) {
+      logger.error('Failed to collect post content to re-edit', {message: e})
+      Toast.show(l`Couldn't prepare this post for editing, please try again`, {
+        type: 'error',
+      })
+      return
+    }
+
+    try {
+      await deletePostMutate({uri: postUri})
+    } catch (e) {
+      logger.error('Failed to delete post to re-edit', {message: e})
+      Toast.show(l`Failed to delete post, please try again`, {type: 'error'})
+      return
+    }
+
+    leaveDeletedPostThread()
+    openComposer(opts)
   }
 
   const onToggleThreadMute = () => {
@@ -817,6 +850,13 @@ let PostMenuItems = ({
                     <Menu.ItemIcon icon={Gear} position="right" />
                   </Menu.Item>
                   <Menu.Item
+                    testID="postDropdownReEditBtn"
+                    label={l`Delete and re-edit`}
+                    onPress={() => reEditPromptControl.open()}>
+                    <Menu.ItemText>{l`Delete and re-edit`}</Menu.ItemText>
+                    <Menu.ItemIcon icon={Pencil} position="right" />
+                  </Menu.Item>
+                  <Menu.Item
                     testID="postDropdownDeleteBtn"
                     label={l`Delete post`}
                     onPress={() => deletePromptControl.open()}>
@@ -829,6 +869,18 @@ let PostMenuItems = ({
           </>
         )}
       </Menu.Outer>
+      <Prompt.Basic
+        control={reEditPromptControl}
+        title={l`Delete and re-edit this post?`}
+        description={
+          hasVideo(post)
+            ? l`The post will be deleted and reopened in the composer. Its video cannot be carried over, so you will need to attach it again. Likes, reposts and replies are not kept.`
+            : l`The post will be deleted and reopened in the composer. Likes, reposts and replies are not kept.`
+        }
+        onConfirm={() => void onDeleteAndReEdit()}
+        confirmButtonCta={l`Delete and re-edit`}
+        confirmButtonColor="negative"
+      />
       <Prompt.Basic
         control={deletePromptControl}
         title={l`Delete this post?`}

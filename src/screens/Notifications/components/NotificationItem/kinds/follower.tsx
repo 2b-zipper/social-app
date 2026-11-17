@@ -112,42 +112,50 @@ export function FollowerNotification({
   }
 
   return (
-    <Item.Root
-      href={makeProfileLink(profile)}
-      isRead={notification.isRead}
-      // Lets screen readers reach the follow button
-      accessible={false}
-      onBeforePress={() => unstableCacheProfileView(queryClient, profile)}
-      style={[a.align_center, a.py_sm]}
-      testID={`notification-${notification.type}-${notification.id}`}>
-      <PlainAvatar profile={profile} />
-      <Item.Content
-        // The avatar stack is taller than a line of text, so give it room
-        style={showSocialProof ? a.gap_2xs : a.gap_0}>
-        <View style={[a.flex_row, a.align_center]}>
-          <Text
-            emoji
-            numberOfLines={1}
-            style={[
-              a.flex_shrink,
-              a.text_md,
-              a.font_semi_bold,
-              a.leading_snug,
-              t.atoms.text,
-            ]}>
-            {name}
-          </Text>
-          <ProfileBadges profile={profile} size="sm" style={[a.pl_2xs]} />
-        </View>
-        {secondLine}
-      </Item.Content>
-      <Item.Trailing>
-        <Item.FollowButton
-          profile={profile}
-          logContext="NotificationFollowersTabRow"
-        />
-      </Item.Trailing>
-    </Item.Root>
+    <View
+      style={{
+        marginHorizontal: 8,
+        marginVertical: 2,
+        borderRadius: 20,
+        overflow: 'hidden',
+      }}>
+      <Item.Root
+        href={makeProfileLink(profile)}
+        isRead={notification.isRead}
+        // Lets screen readers reach the follow button
+        accessible={false}
+        onBeforePress={() => unstableCacheProfileView(queryClient, profile)}
+        style={[a.align_center, a.py_sm]}
+        testID={`notification-${notification.type}-${notification.id}`}>
+        <PlainAvatar profile={profile} />
+        <Item.Content
+          // The avatar stack is taller than a line of text, so give it room
+          style={showSocialProof ? a.gap_2xs : a.gap_0}>
+          <View style={[a.flex_row, a.align_center]}>
+            <Text
+              emoji
+              numberOfLines={1}
+              style={[
+                a.flex_shrink,
+                a.text_md,
+                a.font_semi_bold,
+                a.leading_snug,
+                t.atoms.text,
+              ]}>
+              {name}
+            </Text>
+            <ProfileBadges profile={profile} size="sm" style={[a.pl_2xs]} />
+          </View>
+          {secondLine}
+        </Item.Content>
+        <Item.Trailing>
+          <Item.FollowButton
+            profile={profile}
+            logContext="NotificationFollowersTabRow"
+          />
+        </Item.Trailing>
+      </Item.Root>
+    </View>
   )
 }
 

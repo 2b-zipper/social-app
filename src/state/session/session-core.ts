@@ -439,6 +439,52 @@ export function createSessionBundleFromStoredAccount(
   return {account, bundle}
 }
 
+export async function createDetachedSessionBundle(
+  storedAccount: SessionAccount,
+  onAccountChanged: (account: SessionAccount | undefined) => void,
+): Promise<SessionBundle> {
+  let bundle!: SessionBundle
+  const hooks = makeSessionHooks({
+    onSessionChange: (_bundle, _did, event, sessionData) => {
+      if (event === 'update' && sessionData) {
+        onAccountChanged(
+          sessionDataToSessionAccount(
+            sessionData,
+            sessionData.service,
+            storedAccount.pdsUrl,
+          ),
+        )
+      } else if (event === 'expired') {
+        onAccountChanged(undefined)
+      }
+    },
+    getBundle: () => bundle,
+    getDid: () => storedAccount.did,
+  })
+
+  const sessionData = sessionAccountToSessionData(storedAccount)
+  const session = isSessionExpired(storedAccount)
+    ? await PasswordSession.resume(sessionData, hooks)
+    : new PasswordSession(sessionData, hooks)
+  bundle = buildBundle(session, storedAccount.pdsUrl)
+  registerBundleKillSwitch(bundle, hooks.kill)
+
+  if (session.destroyed) {
+    throw new Error('Session was revoked while it was being resumed')
+  }
+  if (session.session.refreshJwt !== storedAccount.refreshJwt) {
+    onAccountChanged(
+      sessionDataToSessionAccount(
+        session.session,
+        session.session.service,
+        storedAccount.pdsUrl,
+      ),
+    )
+  }
+  hooks.arm()
+  return bundle
+}
+
 export function sessionDataToSessionAccountOrThrow(
   session: PasswordSession,
 ): SessionAccount {

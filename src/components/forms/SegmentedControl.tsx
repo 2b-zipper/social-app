@@ -113,7 +113,7 @@ export function Root<T extends string>({
         a.relative,
         a.flex_row,
         t.atoms.bg_contrast_50,
-        {borderRadius: 14},
+        a.rounded_full,
         a.curve_continuous,
         a.p_xs,
         style,
@@ -236,7 +236,7 @@ export function ItemText({style, ...props}: ButtonTextProps) {
         a.font_medium,
         a.px_xs,
         ctx.active
-          ? t.atoms.text
+          ? [a.font_semi_bold, {color: t.palette.primary_800}]
           : ctx.focused || ctx.hovered || ctx.pressed
             ? t.atoms.text_contrast_medium
             : t.atoms.text_contrast_low,
@@ -254,14 +254,14 @@ function Slider({x, width}: {x: number; width: number}) {
       layout={native(LinearTransition.easing(Easing.out(Easing.exp)))}
       style={[
         a.absolute,
+        a.rounded_full,
         a.curve_continuous,
-        t.atoms.bg,
         {
           top: 4,
           bottom: 4,
           left: 0,
           width,
-          borderRadius: 10,
+          backgroundColor: t.palette.primary_100,
         },
         // TODO: new arch supports boxShadow on native
         // in the meantime this is an attempt to get close

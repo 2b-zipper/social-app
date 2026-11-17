@@ -60,6 +60,11 @@ export type Action =
       accountDid: string
       patch: Pick<SessionAccount, 'emailConfirmed' | 'emailAuthFactor'>
     }
+  | {
+      type: 'refreshed-detached-account'
+      accountDid: string
+      refreshedAccount: SessionAccount | undefined
+    }
 
 function createPublicBundleState(): BundleState {
   return {
@@ -257,6 +262,33 @@ let reducer = (state: State, action: Action): State => {
             }
           }
           return a
+        }),
+        needsPersist: true,
+      }
+    }
+    case 'refreshed-detached-account': {
+      const {accountDid, refreshedAccount} = action
+      if (accountDid === state.currentBundleState.did) {
+        return state
+      }
+      const existingAccount = state.accounts.find(a => a.did === accountDid)
+      if (
+        !existingAccount ||
+        JSON.stringify(existingAccount) === JSON.stringify(refreshedAccount)
+      ) {
+        return state
+      }
+      return {
+        ...state,
+        accounts: state.accounts.map(a => {
+          if (a.did !== accountDid) return a
+          return (
+            refreshedAccount ?? {
+              ...a,
+              accessJwt: undefined,
+              refreshJwt: undefined,
+            }
+          )
         }),
         needsPersist: true,
       }

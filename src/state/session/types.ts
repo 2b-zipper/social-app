@@ -1,3 +1,5 @@
+import {type Client} from '@atproto/lex'
+
 import {type PersistedAccount} from '#/state/persisted'
 import {type Metrics} from '#/analytics/metrics'
 
@@ -65,4 +67,14 @@ export type SessionApiContext = {
    * and `SignupQueued` branches synchronously on the fresh `accessJwt`.
    */
   refreshSession: () => Promise<SessionAccount | undefined>
+  withAccountClients: <T>(
+    did: string,
+    fn: (clients: AccountClients) => Promise<T>,
+  ) => Promise<T>
+}
+
+export type AccountClients = {
+  appviewClient: Client
+  pdsClient: Client
+  chatClient: Client
 }

@@ -12,6 +12,12 @@ import {
 } from '#/lib/routes/types'
 import {logger} from '#/logger'
 import {useIsBirthdateUpdateAllowed} from '#/state/birthdate'
+import {
+  useAllowBlockedInteractions,
+  useBypassBlocks,
+  useSetAllowBlockedInteractions,
+  useSetBypassBlocks,
+} from '#/state/preferences'
 import {useRemoveLabelersMutation} from '#/state/queries/labeler'
 import {useModerationInboxUnreadCountQuery} from '#/state/queries/moderation-inbox'
 import {
@@ -197,6 +203,10 @@ export function ModerationScreenInner({
   const t = useTheme()
   const {gtMobile} = useBreakpoints()
   const {mutedWordsDialogControl} = useGlobalDialogsControlContext()
+  const bypassBlocks = useBypassBlocks()
+  const setBypassBlocks = useSetBypassBlocks()
+  const allowBlockedInteractions = useAllowBlockedInteractions()
+  const setAllowBlockedInteractions = useSetAllowBlockedInteractions()
   const unreadCountQuery = useModerationInboxUnreadCountQuery()
   const {
     isLoading: isLabelersLoading,
@@ -403,6 +413,80 @@ export function ModerationScreenInner({
             />
           )}
         </Link>
+        <Divider />
+        <View
+          style={[
+            a.py_lg,
+            a.px_lg,
+            a.flex_row,
+            a.align_center,
+            a.justify_between,
+            a.gap_md,
+          ]}>
+          <View style={[a.flex_1]}>
+            <Text style={[a.font_semi_bold, t.atoms.text_contrast_high]}>
+              <Trans>Show blocked content</Trans>
+            </Text>
+            <Text
+              style={[
+                a.text_sm,
+                a.leading_snug,
+                a.pt_xs,
+                t.atoms.text_contrast_medium,
+              ]}>
+              <Trans>
+                View posts, quotes, profiles and search results from accounts
+                you have blocked, or that have blocked you, as they appear
+                logged out. A badge on their avatar marks the block. They still
+                cannot interact with you.
+              </Trans>
+            </Text>
+          </View>
+          <Toggle.Item
+            name="bypassBlocks"
+            label={l`Toggle to show blocked content`}
+            value={bypassBlocks}
+            onChange={setBypassBlocks}>
+            <Toggle.Switch />
+          </Toggle.Item>
+        </View>
+        <Divider />
+        <View
+          style={[
+            a.py_lg,
+            a.px_lg,
+            a.flex_row,
+            a.align_center,
+            a.justify_between,
+            a.gap_md,
+          ]}>
+          <View style={[a.flex_1]}>
+            <Text style={[a.font_semi_bold, t.atoms.text_contrast_high]}>
+              <Trans>Interact with blocked content</Trans>
+            </Text>
+            <Text
+              style={[
+                a.text_sm,
+                a.leading_snug,
+                a.pt_xs,
+                t.atoms.text_contrast_medium,
+              ]}>
+              <Trans>
+                Keep likes, reposts, quotes and bookmarks available on posts
+                from accounts with a block either way. Replies stay off. On
+                Bluesky the other account isn’t notified, and everyone else sees
+                your quote as blocked.
+              </Trans>
+            </Text>
+          </View>
+          <Toggle.Item
+            name="allowBlockedInteractions"
+            label={l`Toggle to interact with blocked content`}
+            value={allowBlockedInteractions}
+            onChange={setAllowBlockedInteractions}>
+            <Toggle.Switch />
+          </Toggle.Item>
+        </View>
       </View>
       <Text
         style={[

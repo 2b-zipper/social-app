@@ -114,9 +114,12 @@ import {PostLikedByScreen} from '#/screens/Post/PostLikedBy'
 import {PostQuotesScreen} from '#/screens/Post/PostQuotes'
 import {PostRepostedByScreen} from '#/screens/Post/PostRepostedBy'
 import {ProfileKnownFollowersScreen} from '#/screens/Profile/KnownFollowers'
+import {ProfileBlockedByScreen} from '#/screens/Profile/ProfileBlockedBy'
+import {ProfileBlocksScreen} from '#/screens/Profile/ProfileBlocks'
 import {ProfileFollowersScreen} from '#/screens/Profile/ProfileFollowers'
 import {ProfileFollowsScreen} from '#/screens/Profile/ProfileFollows'
 import {ProfileLabelerLikedByScreen} from '#/screens/Profile/ProfileLabelerLikedBy'
+import {ProfileMutualsScreen} from '#/screens/Profile/ProfileMutuals'
 import {ProfileSearchScreen} from '#/screens/Profile/ProfileSearch'
 import {ProfileListScreen} from '#/screens/ProfileList'
 import {SavedFeeds} from '#/screens/SavedFeeds'
@@ -282,6 +285,25 @@ function commonScreens(Stack: typeof Flat, unreadCountLabel?: string) {
         getComponent={() => ProfileFollowersScreen}
         options={({route}) => ({
           title: title(msg`People following @${route.params.name}`),
+        })}
+      />
+      <Stack.Screen
+        name="ProfileBlocks"
+        getComponent={() => ProfileBlocksScreen}
+        options={({route}) => ({
+          title: title(msg`People blocked by @${route.params.name}`),
+        })}
+      />
+      <Stack.Screen
+        name="ProfileBlockedBy"
+        getComponent={() => ProfileBlockedByScreen}
+        options={{title: title(msg`People blocking you`), requireAuth: true}}
+      />
+      <Stack.Screen
+        name="ProfileMutuals"
+        getComponent={() => ProfileMutualsScreen}
+        options={({route}) => ({
+          title: title(msg`Mutuals of @${route.params.name}`),
         })}
       />
       <Stack.Screen

@@ -30,35 +30,53 @@ export function ProfileHeaderMetrics({
 
   return (
     <View
-      // 10pt has no gap atom; matches the handle-to-pronouns gap in Handle.tsx
-      style={[a.flex_row, a.align_center, {gap: 10}]}
+      style={[a.flex_row, a.flex_wrap, a.align_center, a.gap_sm]}
       pointerEvents="box-none">
-      <InlineLinkText
-        testID="profileHeaderFollowersButton"
-        style={[a.flex_row, t.atoms.text]}
-        to={makeProfileLink(profile, 'followers')}
-        label={`${profile.followersCount || 0} ${pluralizedFollowers}`}>
-        <Text style={[a.font_semi_bold, a.text_md]}>{followers} </Text>
-        <Text style={[t.atoms.text_contrast_medium, a.text_md]}>
-          {pluralizedFollowers}
+      <View
+        style={[
+          t.atoms.bg_contrast_25,
+          {paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999},
+        ]}>
+        <InlineLinkText
+          testID="profileHeaderFollowersButton"
+          style={[a.flex_row, t.atoms.text]}
+          to={makeProfileLink(profile, 'followers')}
+          label={`${profile.followersCount || 0} ${pluralizedFollowers}`}>
+          <Text style={[a.font_semi_bold, a.text_md]}>{followers} </Text>
+          <Text style={[t.atoms.text_contrast_medium, a.text_md]}>
+            {pluralizedFollowers}
+          </Text>
+        </InlineLinkText>
+      </View>
+      <View
+        style={[
+          t.atoms.bg_contrast_25,
+          {paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999},
+        ]}>
+        <InlineLinkText
+          testID="profileHeaderFollowsButton"
+          style={[a.flex_row, t.atoms.text]}
+          to={makeProfileLink(profile, 'follows')}
+          label={_(msg`${profile.followsCount || 0} following`)}>
+          <Text style={[a.font_semi_bold, a.text_md]}>{following} </Text>
+          <Text style={[t.atoms.text_contrast_medium, a.text_md]}>
+            {pluralizedFollowings}
+          </Text>
+        </InlineLinkText>
+      </View>
+      <View
+        style={[
+          t.atoms.bg_contrast_25,
+          {paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999},
+        ]}>
+        <Text style={[a.font_semi_bold, t.atoms.text, a.text_md]}>
+          {formatCount(i18n, profile.postsCount || 0)}{' '}
+          <Text
+            style={[t.atoms.text_contrast_medium, a.font_normal, a.text_md]}>
+            {plural(profile.postsCount || 0, {one: 'post', other: 'posts'})}
+          </Text>
         </Text>
-      </InlineLinkText>
-      <InlineLinkText
-        testID="profileHeaderFollowsButton"
-        style={[a.flex_row, t.atoms.text]}
-        to={makeProfileLink(profile, 'follows')}
-        label={_(msg`${profile.followsCount || 0} following`)}>
-        <Text style={[a.font_semi_bold, a.text_md]}>{following} </Text>
-        <Text style={[t.atoms.text_contrast_medium, a.text_md]}>
-          {pluralizedFollowings}
-        </Text>
-      </InlineLinkText>
-      <Text style={[a.font_semi_bold, t.atoms.text, a.text_md]}>
-        {formatCount(i18n, profile.postsCount || 0)}{' '}
-        <Text style={[t.atoms.text_contrast_medium, a.font_normal, a.text_md]}>
-          {plural(profile.postsCount || 0, {one: 'post', other: 'posts'})}
-        </Text>
-      </Text>
+      </View>
     </View>
   )
 }

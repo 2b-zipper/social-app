@@ -91,7 +91,7 @@ module.exports = function (api) {
       ],
     ],
     plugins: [
-      '@lingui/babel-plugin-lingui-macro',
+      ['@lingui/babel-plugin-lingui-macro', {stripMessageField: false}],
       ['babel-plugin-react-compiler', {target: '19'}],
       [
         'module-resolver',

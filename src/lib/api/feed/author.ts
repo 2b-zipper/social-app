@@ -1,5 +1,7 @@
 import {type Client, type XrpcRequestParams} from '@atproto/lex'
 
+import {withBlockBypass} from '#/lib/api/public-agent'
+import {markBypassedBlockFeed} from '#/lib/moderation/bypassBlocks'
 import {app} from '#/lexicons'
 import * as bsky from '#/types/bsky'
 import {type FeedAPI, type FeedAPIResponse} from './types'
@@ -29,8 +31,21 @@ export class AuthorFeedAPI implements FeedAPI {
     return params
   }
 
+  private async query(params: GetAuthorFeedParams) {
+    return withBlockBypass(
+      () => this.client.call(app.bsky.feed.getAuthorFeed, params),
+      async publicClient => {
+        const data = await publicClient.call(
+          app.bsky.feed.getAuthorFeed,
+          params,
+        )
+        return {...data, feed: markBypassedBlockFeed(data.feed)}
+      },
+    )
+  }
+
   async peekLatest(): Promise<app.bsky.feed.defs.FeedViewPost> {
-    const data = await this.client.call(app.bsky.feed.getAuthorFeed, {
+    const data = await this.query({
       ...this.params,
       limit: 1,
     })
@@ -50,7 +65,7 @@ export class AuthorFeedAPI implements FeedAPI {
      * The agent behaved the same way - its `success` flag was only ever true -
      * so the empty-page branch this replaces was unreachable.
      */
-    const data = await this.client.call(app.bsky.feed.getAuthorFeed, {
+    const data = await this.query({
       ...this.params,
       cursor,
       limit,

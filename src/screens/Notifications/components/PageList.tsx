@@ -33,7 +33,6 @@ import {
   LoadingSkeleton,
   NotificationItem,
 } from '#/screens/Notifications/components/NotificationItem'
-import {useRowBackgroundColor} from '#/screens/Notifications/components/NotificationItem/Item/Root'
 import {usePager} from '#/screens/Notifications/components/PagerView'
 import {RefreshPill} from '#/screens/Notifications/components/RefreshPill'
 import {useRefreshPillMetrics} from '#/screens/Notifications/refreshPillMetrics'
@@ -505,7 +504,6 @@ function isUnreadRow(row: Row | undefined) {
 
 function SectionHeader({
   section,
-  isUnreadAbove,
 }: {
   section: 'today' | 'earlier'
   /**
@@ -517,12 +515,11 @@ function SectionHeader({
 }) {
   const t = useTheme()
   const {t: l} = useLingui()
-  const gapColor = useRowBackgroundColor(!isUnreadAbove)
 
   return (
     <>
       {section === 'earlier' && !SHOW_ROW_BORDERS && (
-        <View style={[a.pt_md, {backgroundColor: gapColor}]} />
+        <View style={[a.pt_md, t.atoms.bg]} />
       )}
       <View
         style={[

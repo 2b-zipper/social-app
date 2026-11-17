@@ -482,7 +482,15 @@ function BaseChatItem({
           // @ts-expect-error web only
           onFocus={onFocus}
           onBlur={onMouseLeave}
-          style={[a.relative, t.atoms.bg, isWithinLeftPanel && a.mx_sm]}>
+          style={[
+            a.relative,
+            {
+              marginHorizontal: 8,
+              marginVertical: 2,
+              borderRadius: 20,
+              overflow: 'hidden',
+            },
+          ]}>
           <View
             style={[
               a.z_10,
@@ -529,13 +537,13 @@ function BaseChatItem({
                   a.px_lg,
                   a.py_md,
                   a.gap_md,
-                  isWithinLeftPanel && [a.rounded_sm, a.mt_2xs],
                   {
+                    borderRadius: 20,
                     backgroundColor: hasUnread
-                      ? t.palette.primary_25
-                      : t.palette.contrast_0,
+                      ? t.palette.primary_50
+                      : t.atoms.bg_contrast_25.backgroundColor,
                   },
-                  (hovered || pressed || focused) && t.atoms.bg_contrast_25,
+                  (hovered || pressed || focused) && t.atoms.bg_contrast_50,
                   selected && t.atoms.bg_contrast_50,
                 ]}>
                 {/* Avatar goes here */}

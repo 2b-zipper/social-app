@@ -5,8 +5,10 @@ import {useLingui} from '@lingui/react'
 import {useQueryClient} from '@tanstack/react-query'
 
 import {useNonReactiveCallback} from '#/lib/hooks/useNonReactiveCallback'
+import {isPostAcrossBlock} from '#/lib/moderation/bypassBlocks'
 import {postUriToRelativePath, toBskyAppUrl} from '#/lib/strings/url-helpers'
 import {purgeTemporaryImageFiles} from '#/state/gallery'
+import * as persisted from '#/state/persisted'
 import {
   precacheResolveLinkQuery,
   RQKEY_GIF_ROOT,
@@ -70,7 +72,7 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
   const queryClient = useQueryClient()
 
   const openComposer = useNonReactiveCallback((opts: ComposerOpts) => {
-    if (opts.quote) {
+    if (opts.quote && !isPostAcrossBlock(opts.quote)) {
       const path = postUriToRelativePath(opts.quote.uri)
       if (path) {
         const appUrl = toBskyAppUrl(path)
@@ -92,7 +94,9 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
         author.viewer?.blockedBy ||
         author.viewer?.blockingByList),
     )
-    if (isBlocked) {
+    const isAllowedAcrossBlock =
+      !opts.replyTo && !!persisted.get('allowBlockedInteractions')
+    if (isBlocked && !isAllowedAcrossBlock) {
       Toast.show(_(msg`Cannot interact with a blocked user`), {
         type: 'warning',
       })

@@ -393,10 +393,10 @@ export function Checkbox() {
         t.atoms.border_contrast_high,
         a.transition_color,
         {
-          borderWidth: 1,
+          borderWidth: 2,
           height: 24,
           width: 24,
-          borderRadius: 6,
+          borderRadius: 8,
         },
         baseStyles,
         hovered ? baseHoverStyles : {},
@@ -417,21 +417,25 @@ export function Switch() {
     if (selected) {
       base.push({
         backgroundColor: t.palette.primary_500,
+        borderColor: t.palette.primary_500,
       })
 
       if (hovered) {
         baseHover.push({
           backgroundColor: t.palette.primary_400,
+          borderColor: t.palette.primary_400,
         })
       }
     } else {
       base.push({
-        backgroundColor: t.palette.contrast_200,
+        backgroundColor: t.palette.contrast_100,
+        borderColor: t.palette.contrast_400,
       })
 
       if (hovered) {
         baseHover.push({
-          backgroundColor: t.palette.contrast_100,
+          backgroundColor: t.palette.contrast_200,
+          borderColor: t.palette.contrast_500,
         })
       }
     }
@@ -439,22 +443,26 @@ export function Switch() {
     if (isInvalid) {
       base.push({
         backgroundColor: t.palette.negative_200,
+        borderColor: t.palette.negative_400,
       })
 
       if (hovered) {
         baseHover.push({
           backgroundColor: t.palette.negative_100,
+          borderColor: t.palette.negative_500,
         })
       }
 
       if (selected) {
         base.push({
           backgroundColor: t.palette.negative_500,
+          borderColor: t.palette.negative_500,
         })
 
         if (hovered) {
           baseHover.push({
             backgroundColor: t.palette.negative_400,
+            borderColor: t.palette.negative_400,
           })
         }
       }
@@ -463,11 +471,13 @@ export function Switch() {
     if (disabled) {
       base.push({
         backgroundColor: t.palette.contrast_50,
+        borderColor: t.palette.contrast_200,
       })
 
       if (selected) {
         base.push({
           backgroundColor: t.palette.primary_100,
+          borderColor: t.palette.primary_100,
         })
       }
     }
@@ -484,11 +494,14 @@ export function Switch() {
       style={[
         a.relative,
         a.rounded_full,
+        a.justify_center,
         t.atoms.bg,
         {
-          height: 28,
-          width: 48,
-          padding: 3,
+          height: 32,
+          width: 52,
+          borderRadius: 16,
+          borderWidth: 2,
+          paddingHorizontal: selected ? 4 : 6,
         },
         a.transition_color,
         baseStyles,
@@ -503,15 +516,25 @@ export function Switch() {
         ).easing(Easing.inOut(Easing.cubic))}
         style={[
           a.rounded_full,
-          {
-            backgroundColor: t.palette.white,
-            height: 22,
-            width: 22,
-          },
-          selected ? {alignSelf: 'flex-end'} : {alignSelf: 'flex-start'},
+          a.align_center,
+          a.justify_center,
+          selected
+            ? {
+                backgroundColor: t.palette.white,
+                height: 24,
+                width: 24,
+                alignSelf: 'flex-end',
+              }
+            : {
+                backgroundColor: t.palette.contrast_600,
+                height: 16,
+                width: 16,
+                alignSelf: 'flex-start',
+              },
           indicatorStyles,
-        ]}
-      />
+        ]}>
+        {selected && <Checkmark width={14} fill={t.palette.primary_600} />}
+      </Animated.View>
     </View>
   )
 }

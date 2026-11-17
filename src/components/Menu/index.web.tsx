@@ -191,8 +191,8 @@ export function Outer({children, style, onCloseAutoFocus}: OuterProps) {
         className="dropdown-menu-transform-origin dropdown-menu-constrain-size">
         <View
           style={[
-            a.rounded_sm,
-            a.p_xs,
+            a.rounded_md,
+            a.p_sm,
             a.border,
             t.name === 'light' ? t.atoms.bg : t.atoms.bg_contrast_25,
             t.atoms.shadow_md,
@@ -261,9 +261,9 @@ export function Item({
           a.align_center,
           a.gap_lg,
           a.py_sm,
-          a.rounded_xs,
+          a.rounded_sm,
           a.overflow_hidden,
-          {minHeight: 32, paddingHorizontal: 10},
+          {minHeight: 36, paddingHorizontal: 12},
           web({outline: 0}),
           (hovered || focused) &&
             !rest.disabled && [

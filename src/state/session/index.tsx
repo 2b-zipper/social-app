@@ -25,6 +25,7 @@ import {pickExpiryRescueCandidate} from './expiry-rescue'
 import {type Action, getInitialState, reducer, type State} from './reducer'
 import {
   type AtpSessionEvent,
+  createDetachedSessionBundle,
   createSessionBundleAndLogin,
   createSessionBundleAndResume,
   createSessionBundleFromStoredAccount,
@@ -77,6 +78,8 @@ const ApiContext = createContext<SessionApiContext>({
   removeAccount: () => {},
   partialRefreshSession: async () => {},
   refreshSession: () => Promise.resolve(undefined),
+  withAccountClients: () =>
+    Promise.reject(new Error('withAccountClients called outside a provider')),
 })
 ApiContext.displayName = 'SessionApiContext'
 
@@ -658,6 +661,33 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
     [state],
   )
 
+  const withAccountClients = useCallback<
+    SessionApiContext['withAccountClients']
+  >(
+    async (did, fn) => {
+      const storedAccount = store.getState().accounts.find(a => a.did === did)
+      if (!storedAccount) {
+        throw new Error('That account is no longer signed in')
+      }
+      const detached = await createDetachedSessionBundle(
+        storedAccount,
+        refreshedAccount => {
+          store.dispatch({
+            type: 'refreshed-detached-account',
+            accountDid: did,
+            refreshedAccount,
+          })
+        },
+      )
+      try {
+        return await fn(detached)
+      } finally {
+        disposeBundle(detached)
+      }
+    },
+    [store],
+  )
+
   const api = useMemo(
     () => ({
       createAccount,
@@ -668,6 +698,7 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
       removeAccount,
       partialRefreshSession,
       refreshSession,
+      withAccountClients,
     }),
     [
       createAccount,
@@ -678,6 +709,7 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
       removeAccount,
       partialRefreshSession,
       refreshSession,
+      withAccountClients,
     ],
   )
 

@@ -194,12 +194,11 @@ export function Item({
         a.align_center,
         a.gap_sm,
         a.px_md,
-        a.rounded_md,
         a.overflow_hidden,
         a.border,
         t.atoms.bg_contrast_25,
         t.atoms.border_contrast_low,
-        {minHeight: 44, paddingVertical: 10},
+        {minHeight: 48, paddingVertical: 12, borderRadius: 16},
         style,
         (focused || pressed) && !rest.disabled && [t.atoms.bg_contrast_50],
       ]}>
@@ -343,7 +342,7 @@ export function Group({children, style}: GroupProps) {
   return (
     <View
       style={[
-        a.rounded_lg,
+        {borderRadius: 20},
         a.curve_continuous,
         a.overflow_hidden,
         a.border,

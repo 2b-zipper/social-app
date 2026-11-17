@@ -114,6 +114,7 @@ function redactAction(action: Action): RedactedAction {
     case 'received-session-event':
     case 'removed-account':
     case 'partial-refresh-session':
+    case 'refreshed-detached-account':
       return {type: action.type, accountDid: action.accountDid}
     case 'switched-to-account':
     case 'replaced-current-bundle':

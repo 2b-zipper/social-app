@@ -252,7 +252,7 @@ function ProfileScreenLoaded({
   const showRepliesTab = hasSession || tab === 'replies'
   const showMediaTab = !hasLabeler
   const showVideosTab = !hasLabeler
-  const showLikesTab = isMe
+  const showLikesTab = true
   const feedGenCount = profile.associated?.feedgens || 0
   const showFeedsTab = isMe || feedGenCount > 0
   const starterPackCount = profile.associated?.starterPacks || 0

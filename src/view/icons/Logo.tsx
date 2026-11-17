@@ -15,6 +15,13 @@ import {flatten, useTheme} from '#/alf'
 
 const ratio = 57 / 64
 
+const KAWAII_SCALE = 1.8
+
+export const KAWAII_HEADER_EXTRA_HEIGHT = Math.max(
+  0,
+  30 * KAWAII_SCALE + 4 - 48,
+)
+
 type Props = {
   allowVariants?: boolean
   fill?: PathProps['fill']
@@ -35,6 +42,7 @@ export const Logo = forwardRef(function LogoImpl(props: Props, ref) {
   const logoVariant = useLogoVariant(allowVariants)
 
   if (logoVariant === 'kawaii') {
+    const height = size * KAWAII_SCALE
     return (
       <Image
         source={
@@ -45,7 +53,7 @@ export const Logo = forwardRef(function LogoImpl(props: Props, ref) {
         accessibilityLabel="Bluesky"
         accessibilityHint=""
         accessibilityIgnoresInvertColors
-        style={[{height: size, aspectRatio: 1.4}]}
+        style={[{height, aspectRatio: 1.4}]}
       />
     )
   }

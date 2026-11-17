@@ -13,16 +13,22 @@ import {
   type CommonNavigatorParams,
   type NativeStackScreenProps,
 } from '#/lib/routes/types'
+import {useMaterialYou, useSetMaterialYou} from '#/state/preferences'
+import {useKawaiiMode, useSetKawaiiMode} from '#/state/preferences/kawaii'
 import {useSetThemePrefs, useThemePrefs} from '#/state/shell'
 import {type Alf, atoms as a, native, useAlf, useTheme} from '#/alf'
 import * as SegmentedControl from '#/components/forms/SegmentedControl'
+import * as Toggle from '#/components/forms/Toggle'
 import {type Props as SVGIconProps} from '#/components/icons/common'
 import {Moon_Stroke2_Corner0_Rounded as MoonIcon} from '#/components/icons/Moon'
+import {PaintRoller_Stroke2_Corner2_Rounded as PaletteIcon} from '#/components/icons/PaintRoller'
 import {Phone_Stroke2_Corner0_Rounded as PhoneIcon} from '#/components/icons/Phone'
+import {Sparkle_Stroke2_Corner0_Rounded as SparkleIcon} from '#/components/icons/Sparkle'
 import {TextSize_Stroke2_Corner0_Rounded as TextSize} from '#/components/icons/TextSize'
 import {TitleCase_Stroke2_Corner0_Rounded as Aa} from '#/components/icons/TitleCase'
 import * as Layout from '#/components/Layout'
 import {Text} from '#/components/Typography'
+import {IS_ANDROID} from '#/env'
 import * as SettingsList from './components/SettingsList'
 
 type Props = NativeStackScreenProps<CommonNavigatorParams, 'AppearanceSettings'>
@@ -32,6 +38,11 @@ export function AppearanceSettingsScreen({}: Props) {
 
   const {colorMode, darkTheme} = useThemePrefs()
   const {setColorMode, setDarkTheme} = useSetThemePrefs()
+
+  const materialYou = useMaterialYou()
+  const setMaterialYou = useSetMaterialYou()
+  const kawaii = useKawaiiMode()
+  const setKawaii = useSetKawaiiMode()
 
   const onChangeAppearance = useCallback(
     (value: 'light' | 'system' | 'dark') => {
@@ -162,6 +173,50 @@ export function AppearanceSettingsScreen({}: Props) {
                 value={fonts.scale}
                 onChange={onChangeFontScale}
               />
+
+              {IS_ANDROID && (
+                <>
+                  <SettingsList.Divider />
+
+                  <SettingsList.Group contentContainerStyle={[a.gap_sm]}>
+                    <SettingsList.ItemIcon icon={PaletteIcon} />
+                    <SettingsList.ItemText>
+                      <Trans>Material You</Trans>
+                    </SettingsList.ItemText>
+                    <Toggle.Item
+                      name="material_you"
+                      label={_(msg`Use the system accent color`)}
+                      value={materialYou}
+                      onChange={value => setMaterialYou(value)}
+                      style={[a.w_full]}>
+                      <Toggle.LabelText style={[a.flex_1]}>
+                        <Trans>Use the system accent color</Trans>
+                      </Toggle.LabelText>
+                      <Toggle.Platform />
+                    </Toggle.Item>
+                  </SettingsList.Group>
+                </>
+              )}
+
+              <SettingsList.Divider />
+
+              <SettingsList.Group contentContainerStyle={[a.gap_sm]}>
+                <SettingsList.ItemIcon icon={SparkleIcon} />
+                <SettingsList.ItemText>
+                  <Trans>Kawaii logo</Trans>
+                </SettingsList.ItemText>
+                <Toggle.Item
+                  name="kawaii"
+                  label={_(msg`Use the kawaii logo`)}
+                  value={kawaii ?? false}
+                  onChange={value => setKawaii(value)}
+                  style={[a.w_full]}>
+                  <Toggle.LabelText style={[a.flex_1]}>
+                    <Trans>Use the kawaii logo</Trans>
+                  </Toggle.LabelText>
+                  <Toggle.Platform />
+                </Toggle.Item>
+              </SettingsList.Group>
 
               {/*{IS_NATIVE && IS_INTERNAL && (
                 <>

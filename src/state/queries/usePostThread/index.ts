@@ -2,6 +2,9 @@ import {useCallback, useMemo, useState} from 'react'
 import {type AtUriString} from '@atproto/syntax'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 
+import {getPublicClient} from '#/lib/api/public-agent'
+import {markBypassedBlock} from '#/lib/moderation/bypassBlocks'
+import {useBypassBlocks} from '#/state/preferences'
 import {useModerationOpts} from '#/state/preferences/moderation-opts'
 import {useThreadPreferences} from '#/state/queries/preferences/useThreadPreferences'
 import {
@@ -42,6 +45,7 @@ export * from '#/state/queries/usePostThread/types'
 export function usePostThread({anchor}: {anchor?: string}) {
   const qc = useQueryClient()
   const client = useAppviewClient()
+  const bypassBlocks = useBypassBlocks()
   const {hasSession} = useSession()
   const {gtPhone} = useBreakpoints()
   const moderationOpts = useModerationOpts()
@@ -75,12 +79,39 @@ export function usePostThread({anchor}: {anchor?: string}) {
     queryKey: postThreadQueryKey,
     async queryFn(ctx) {
       const placeholder = getThreadPlaceholder(qc, anchor!)
-      const data = await client.call(app.bsky.unspecced.getPostThreadV2, {
+      const params = {
         anchor: anchor! as AtUriString,
         branchingFactor: view === 'linear' ? LINEAR_VIEW_BF : TREE_VIEW_BF,
         below,
         sort: sort,
-      })
+      }
+      let data = await client.call(app.bsky.unspecced.getPostThreadV2, params)
+
+      if (
+        bypassBlocks &&
+        data.thread.some(item =>
+          bsky.isType(app.bsky.unspecced.defs.threadItemBlocked, item.value),
+        )
+      ) {
+        const publicData = await getPublicClient().call(
+          app.bsky.unspecced.getPostThreadV2,
+          params,
+        )
+        data = {
+          ...publicData,
+          thread: publicData.thread.map(item =>
+            bsky.isType(app.bsky.unspecced.defs.threadItemPost, item.value)
+              ? {
+                  ...item,
+                  value: {
+                    ...item.value,
+                    post: markBypassedBlock(item.value.post),
+                  },
+                }
+              : item,
+          ),
+        }
+      }
 
       const cachedKnownLikers =
         placeholder &&

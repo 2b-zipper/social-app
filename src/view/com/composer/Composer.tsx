@@ -67,6 +67,7 @@ import {
 import {useNonReactiveCallback} from '#/lib/hooks/useNonReactiveCallback'
 import {createVideoTelemetry} from '#/lib/media/video/telemetry'
 import {mimeToExt} from '#/lib/media/video/util'
+import {isPostAcrossBlock} from '#/lib/moderation/bypassBlocks'
 import {useCallOnce} from '#/lib/once'
 import {type NavigationProp} from '#/lib/routes/types'
 import {cleanError} from '#/lib/strings/errors'
@@ -88,13 +89,13 @@ import {
   useLanguagePrefsApi,
 } from '#/state/preferences/languages'
 import {usePreferencesQuery} from '#/state/queries/preferences'
-import {useProfileQuery} from '#/state/queries/profile'
 import {resolveLinkQueryOptions} from '#/state/queries/resolve-link'
 import {
   useAppviewClient,
   useChatClient,
   usePdsClient,
   useSession,
+  useSessionApi,
 } from '#/state/session'
 import {useComposerControls} from '#/state/shell/composer'
 import {type ComposerOpts, type OnPostSuccessData} from '#/state/shell/composer'
@@ -119,10 +120,10 @@ import {ThreadgateBtn} from '#/view/com/composer/threadgate/ThreadgateBtn'
 import {SubtitleDialogBtn} from '#/view/com/composer/videos/SubtitleDialog'
 import {VideoPreview} from '#/view/com/composer/videos/VideoPreview'
 import {VideoTranscodeProgress} from '#/view/com/composer/videos/VideoTranscodeProgress'
-import {UserAvatar} from '#/view/com/util/UserAvatar'
 import {atoms as a, native, useBreakpoints, useTheme, web} from '#/alf'
 import {Admonition} from '#/components/Admonition'
 import {Button, ButtonIcon, ButtonText} from '#/components/Button'
+import {PostAsAccountAvatar} from '#/components/Composer/PostAsAccountAvatar'
 import * as EmojiPicker from '#/components/EmojiPicker'
 import {CircleCheck_Stroke2_Corner0_Rounded as CircleCheckIcon} from '#/components/icons/CircleCheck'
 import {CircleInfo_Stroke2_Corner0_Rounded as CircleInfoIcon} from '#/components/icons/CircleInfo'
@@ -267,6 +268,7 @@ export const ComposePost = ({
   cancelRef?: React.RefObject<CancelRef | null>
 }) => {
   const {currentAccount} = useSession()
+  const {withAccountClients} = useSessionApi()
   const t = useTheme()
   const ax = useAnalytics()
   const client = useAppviewClient()
@@ -298,6 +300,9 @@ export const ComposePost = ({
   const [isPublishing, setIsPublishing] = useState(false)
   const [publishingStage, setPublishingStage] = useState('')
   const [error, setError] = useState('')
+
+  const [postAsDid, setPostAsDid] = useState<string>(currentAccount!.did)
+  const isPostingAsOtherAccount = postAsDid !== currentAccount!.did
 
   /**
    * Track when a draft was created so we can measure draft age in metrics.
@@ -1040,6 +1045,16 @@ export const ComposePost = ({
     }
 
     if (
+      isPostingAsOtherAccount &&
+      filteredThread.posts.some(post => post.embed.media?.type === 'video')
+    ) {
+      setError(
+        l`Videos can only be posted from the active account. Remove the video or post as the active account.`,
+      )
+      return
+    }
+
+    if (
       filteredThread.posts.some(
         post =>
           post.embed.media?.type === 'video' &&
@@ -1059,16 +1074,23 @@ export const ComposePost = ({
     let postSuccessData: OnPostSuccessData
     try {
       logger.info(`composer: posting...`)
+      const postOpts = {
+        thread: filteredThread,
+        replyTo: replyTo?.uri,
+        onStateChange: setPublishingStage,
+        langs: currentLanguages,
+      }
       postUri = (
-        await apilib.post(queryClient, {
-          thread: filteredThread,
-          replyTo: replyTo?.uri,
-          onStateChange: setPublishingStage,
-          langs: currentLanguages,
-          appviewClient: client,
-          chatClient,
-          pdsClient,
-        })
+        isPostingAsOtherAccount
+          ? await withAccountClients(postAsDid, clients =>
+              apilib.post(queryClient, {...postOpts, ...clients}),
+            )
+          : await apilib.post(queryClient, {
+              ...postOpts,
+              appviewClient: client,
+              chatClient,
+              pdsClient,
+            })
       ).uris[0]
 
       // Fire published event for every video that made it into the post.
@@ -1212,7 +1234,7 @@ export const ComposePost = ({
       })
     }
     setLangPrefs.savePostLanguageToHistory(fromPostLanguages(currentLanguages))
-    if (initQuote) {
+    if (initQuote && !isPostAcrossBlock(initQuote)) {
       // We want to wait for the quote count to update before we call `onPost`, which will refetch data
       void whenAppViewReady(client, initQuote.uri, res => {
         const anchor = res?.thread.at(0)
@@ -1284,6 +1306,9 @@ export const ComposePost = ({
     emptyPostsPromptControl,
     getFilteredThread,
     linkQueries,
+    isPostingAsOtherAccount,
+    postAsDid,
+    withAccountClients,
   ])
 
   const handleConfirmSkipEmpty = () => {
@@ -1501,6 +1526,8 @@ export const ComposePost = ({
                   onClearVideo={clearVideo}
                   onPublish={onComposerPostPublish}
                   onError={setError}
+                  postAsDid={postAsDid}
+                  onSelectPostAs={setPostAsDid}
                 />
                 {IS_WEBFooterSticky && post.id === activePost.id && (
                   <View style={styles.stickyFooterWeb}>{footer}</View>
@@ -1597,6 +1624,8 @@ let ComposerPost = memo(function ComposerPost({
   onSelectVideo,
   onError,
   onPublish,
+  postAsDid,
+  onSelectPostAs,
 }: {
   post: PostDraft
   dispatch: (action: ComposerAction) => void
@@ -1615,11 +1644,10 @@ let ComposerPost = memo(function ComposerPost({
   ) => void | Promise<void>
   onError: (error: string) => void
   onPublish: (richtext: RichText) => void
+  postAsDid: string
+  onSelectPostAs: (did: string) => void
 }) {
-  const {currentAccount} = useSession()
-  const currentDid = currentAccount!.did
   const {t: l} = useLingui()
-  const {data: currentProfile} = useProfileQuery({did: currentDid})
   const richtext = post.richtext
   const isTextOnly = !post.embed.link && !post.embed.quote && !post.embed.media
   const forceMinHeight = IS_WEB && isTextOnly && isActive
@@ -1695,11 +1723,9 @@ let ComposerPost = memo(function ComposerPost({
         isTextOnly && isLastPost && IS_NATIVE && a.flex_grow,
       ]}>
       <View style={[a.flex_row, IS_NATIVE && a.flex_1]}>
-        <UserAvatar
-          avatar={currentProfile?.avatar}
-          size={42}
-          type={currentProfile?.associated?.labeler ? 'labeler' : 'user'}
-          style={[a.mt_xs]}
+        <PostAsAccountAvatar
+          postAsDid={postAsDid}
+          onSelectAccount={onSelectPostAs}
         />
         <TextInput
           ref={textInputRef}

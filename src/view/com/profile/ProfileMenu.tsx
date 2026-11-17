@@ -35,6 +35,7 @@ import {Mute_Stroke2_Corner0_Rounded as MuteIcon} from '#/components/icons/Mute'
 import {PeopleRemove2_Stroke2_Corner0_Rounded as UserMinusIcon} from '#/components/icons/PeopleRemove2'
 import {
   PersonCheck_Stroke2_Corner0_Rounded as PersonCheckIcon,
+  PersonGroup_Stroke2_Corner2_Rounded as PeopleIcon,
   PersonX_Stroke2_Corner0_Rounded as PersonXIcon,
 } from '#/components/icons/Person'
 import {PlusLarge_Stroke2_Corner0_Rounded as PlusIcon} from '#/components/icons/Plus'
@@ -273,6 +274,18 @@ let ProfileMenu = ({
     navigation.navigate('ProfileSearch', {name: profile.handle})
   }, [navigation, profile.handle])
 
+  const onPressBlocks = useCallback(() => {
+    navigation.navigate('ProfileBlocks', {name: profile.handle})
+  }, [navigation, profile.handle])
+
+  const onPressBlockedBy = () => {
+    navigation.navigate('ProfileBlockedBy', {name: profile.handle})
+  }
+
+  const onPressMutuals = () => {
+    navigation.navigate('ProfileMutuals', {name: profile.handle})
+  }
+
   const verificationCreatePromptControl = Prompt.usePromptControl()
   const verificationRemovePromptControl = Prompt.usePromptControl()
   const currentAccountVerifications =
@@ -335,6 +348,37 @@ let ProfileMenu = ({
                 <Trans>Search posts</Trans>
               </Menu.ItemText>
               <Menu.ItemIcon icon={SearchIcon} />
+            </Menu.Item>
+            {!isSelf && (
+              <Menu.Item
+                testID="profileHeaderDropdownBlocksBtn"
+                label={l`See blocked accounts`}
+                onPress={onPressBlocks}>
+                <Menu.ItemText>
+                  <Trans>See blocked accounts</Trans>
+                </Menu.ItemText>
+                <Menu.ItemIcon icon={PersonXIcon} />
+              </Menu.Item>
+            )}
+            {isSelf && (
+              <Menu.Item
+                testID="profileHeaderDropdownBlockedByBtn"
+                label={l`See who's blocking you`}
+                onPress={onPressBlockedBy}>
+                <Menu.ItemText>
+                  <Trans>See who's blocking you</Trans>
+                </Menu.ItemText>
+                <Menu.ItemIcon icon={PersonXIcon} />
+              </Menu.Item>
+            )}
+            <Menu.Item
+              testID="profileHeaderDropdownMutualsBtn"
+              label={l`See mutuals`}
+              onPress={onPressMutuals}>
+              <Menu.ItemText>
+                <Trans>See mutuals</Trans>
+              </Menu.ItemText>
+              <Menu.ItemIcon icon={PeopleIcon} />
             </Menu.Item>
           </Menu.Group>
 

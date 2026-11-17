@@ -14,7 +14,10 @@ import {useQueryClient} from '@tanstack/react-query'
 import {getEmbedCreator} from '#/lib/at-card'
 import {makeProfileLink} from '#/lib/routes/links'
 import {getChatInviteCodeFromUrl} from '#/lib/strings/url-helpers'
+import {useBypassBlocks} from '#/state/preferences'
 import {useModerationOpts} from '#/state/preferences/moderation-opts'
+import {useBlockedQuotePostQuery} from '#/state/queries/blocked-quote-post'
+import {createEmbedViewRecordFromPost} from '#/state/queries/postgate/util'
 import {unstableCacheProfileView} from '#/state/queries/profile'
 import {useSession} from '#/state/session'
 import {Link} from '#/view/com/util/Link'
@@ -261,11 +264,7 @@ function RecordEmbed({
       )
     }
     case 'post_blocked': {
-      return (
-        <PostPlaceholderText>
-          <Trans>Blocked</Trans>
-        </PostPlaceholderText>
-      )
+      return <BlockedQuoteEmbed {...rest} embed={embed} />
     }
     case 'post_detached': {
       return <PostDetachedEmbed embed={embed} />
@@ -274,6 +273,51 @@ function RecordEmbed({
       return null
     }
   }
+}
+
+function BlockedQuoteEmbed({
+  embed,
+  ...rest
+}: CommonProps & {
+  embed: EmbedType<'post_blocked'>
+}) {
+  const t = useTheme()
+  const bypassBlocks = useBypassBlocks()
+  const canBypass =
+    bypassBlocks && !(rest.isWithinQuote && !rest.allowNestedQuotes)
+  const {data: post, isLoading} = useBlockedQuotePostQuery({
+    uri: embed.view.uri,
+    enabled: canBypass,
+  })
+
+  if (canBypass && post) {
+    const view = createEmbedViewRecordFromPost({
+      ...post,
+      author: {
+        ...post.author,
+        viewer: {...post.author.viewer, ...embed.view.author.viewer},
+      },
+    })
+    return <QuoteEmbed {...rest} embed={{type: 'post', view}} />
+  }
+  if (canBypass && isLoading) {
+    return (
+      <View
+        style={[
+          a.w_full,
+          a.mt_sm,
+          a.rounded_md,
+          t.atoms.bg_contrast_25,
+          {height: 68},
+        ]}
+      />
+    )
+  }
+  return (
+    <PostPlaceholderText>
+      <Trans>Blocked</Trans>
+    </PostPlaceholderText>
+  )
 }
 
 export function PostDetachedEmbed({

@@ -9,7 +9,6 @@ import {type ReasonFeedSource} from '#/lib/api/feed/types'
 import {type FeedPostNumbering} from '#/lib/api/feed-manip'
 import {MAX_POST_LINES} from '#/lib/constants'
 import {useOpenComposer} from '#/lib/hooks/useOpenComposer'
-import {usePalette} from '#/lib/hooks/usePalette'
 import {makeProfileLink} from '#/lib/routes/links'
 import {countLines} from '#/lib/strings/helpers'
 import {
@@ -33,7 +32,7 @@ import {
   ThreadItemPostNumber,
   useHasThreadItemPostNumber,
 } from '#/screens/PostThread/components/ThreadItemPostNumber'
-import {atoms as a, select, useTheme} from '#/alf'
+import {atoms as a, useTheme} from '#/alf'
 import {
   GalleryBleed,
   maybeApplyGalleryOffsetStyles,
@@ -158,7 +157,6 @@ let FeedItemInner = ({
   isThreadChild,
   isThreadLastChild,
   isThreadParent,
-  hideTopBorder,
   isParentBlocked,
   isParentNotFound,
   rootPost,
@@ -172,7 +170,6 @@ let FeedItemInner = ({
   const ax = useAnalytics()
   const queryClient = useQueryClient()
   const {openComposer} = useOpenComposer()
-  const pal = usePalette('default')
   const t = useTheme()
   const {currentAccount} = useSession()
 
@@ -279,15 +276,44 @@ let FeedItemInner = ({
 
   const outerStyles = [
     styles.outer,
-    {
-      borderColor: pal.colors.border,
-      paddingBottom:
-        isThreadLastChild || (!isThreadChild && !isThreadParent)
-          ? 8
-          : undefined,
-      borderTopWidth:
-        hideTopBorder || isThreadChild ? 0 : StyleSheet.hairlineWidth,
-    },
+    t.atoms.bg_contrast_25,
+    !isThreadParent &&
+      !isThreadChild && {
+        borderRadius: 24,
+        marginTop: 6,
+        marginBottom: 2,
+        paddingTop: 4,
+        paddingBottom: 12,
+      },
+    isThreadParent &&
+      !isThreadChild && {
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        borderBottomLeftRadius: 6,
+        borderBottomRightRadius: 6,
+        marginTop: 6,
+        marginBottom: 1,
+        paddingTop: 4,
+        paddingBottom: 6,
+      },
+    isThreadChild &&
+      !isThreadLastChild && {
+        borderRadius: 6,
+        marginVertical: 1,
+        paddingTop: 0,
+        paddingBottom: 6,
+      },
+    isThreadChild &&
+      isThreadLastChild && {
+        borderTopLeftRadius: 6,
+        borderTopRightRadius: 6,
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
+        marginTop: 1,
+        marginBottom: 2,
+        paddingTop: 0,
+        paddingBottom: 12,
+      },
   ]
 
   /**
@@ -361,11 +387,7 @@ let FeedItemInner = ({
                 style={[
                   styles.replyLine,
                   {
-                    backgroundColor: select(t.name, {
-                      light: t.palette.contrast_100,
-                      dim: t.palette.contrast_200,
-                      dark: t.palette.contrast_200,
-                    }),
+                    backgroundColor: t.palette.primary_200,
                     marginBottom: 4,
                   },
                 ]}
@@ -399,11 +421,7 @@ let FeedItemInner = ({
                 style={[
                   styles.replyLine,
                   {
-                    backgroundColor: select(t.name, {
-                      light: t.palette.contrast_100,
-                      dim: t.palette.contrast_200,
-                      dark: t.palette.contrast_200,
-                    }),
+                    backgroundColor: t.palette.primary_200,
                     marginTop: live ? 8 : 4,
                   },
                 ]}
@@ -578,13 +596,15 @@ PostContent = memo(PostContent)
 
 const styles = StyleSheet.create({
   outer: {
-    paddingLeft: 10,
-    paddingRight: 15,
+    paddingLeft: 6,
+    paddingRight: 14,
+    marginHorizontal: 8,
     cursor: 'pointer',
   },
   replyLine: {
     flexGrow: 1,
-    width: 2,
+    width: 2.5,
+    borderRadius: 2,
     marginLeft: 'auto',
     marginRight: 'auto',
   },

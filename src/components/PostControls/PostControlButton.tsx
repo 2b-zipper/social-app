@@ -2,7 +2,7 @@ import {createContext, useContext, useMemo} from 'react'
 import {type GestureResponderEvent, type Insets, type View} from 'react-native'
 
 import {useHaptics} from '#/lib/haptics'
-import {atoms as a, useTheme} from '#/alf'
+import {atoms as a, useTheme, utils} from '#/alf'
 import {Button, type ButtonProps} from '#/components/Button'
 import {type Props as SVGIconProps} from '#/components/icons/common'
 import {Text, type TextProps} from '#/components/Typography'
@@ -53,10 +53,17 @@ export function PostControlButton({
       a.flex_row,
       a.align_center,
       a.gap_xs,
-      a.bg_transparent,
-      {padding: 5},
+      a.rounded_full,
+      {
+        backgroundColor:
+          active && activeColor
+            ? utils.alpha(activeColor, 0.16)
+            : t.atoms.bg_contrast_50.backgroundColor,
+        paddingHorizontal: big ? 11 : 8,
+        paddingVertical: big ? 6 : 5,
+      },
     ],
-    [],
+    [active, activeColor, big, t.atoms.bg_contrast_50.backgroundColor],
   )
 
   const handlePress = useMemo(() => {
@@ -81,7 +88,7 @@ export function PostControlButton({
       onPress={handlePress}
       onLongPress={handleLongPress}
       style={style}
-      hoverStyle={t.atoms.bg_contrast_25}
+      hoverStyle={t.atoms.bg_contrast_100}
       shape="round"
       variant="ghost"
       color="secondary"

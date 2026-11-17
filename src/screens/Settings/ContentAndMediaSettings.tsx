@@ -4,7 +4,12 @@ import {Trans} from '@lingui/react/macro'
 import {type NativeStackScreenProps} from '@react-navigation/native-stack'
 
 import {type CommonNavigatorParams} from '#/lib/routes/types'
-import {useAutoplayDisabled, useSetAutoplayDisabled} from '#/state/preferences'
+import {
+  useAutoplayDisabled,
+  useProxyExternalLinks,
+  useSetAutoplayDisabled,
+  useSetProxyExternalLinks,
+} from '#/state/preferences'
 import {
   useInAppBrowser,
   useSetInAppBrowser,
@@ -17,6 +22,7 @@ import {useTrendingConfig} from '#/state/service-config'
 import * as SettingsList from '#/screens/Settings/components/SettingsList'
 import * as Toggle from '#/components/forms/Toggle'
 import {Bubbles_Stroke2_Corner2_Rounded as BubblesIcon} from '#/components/icons/Bubble'
+import {ChainLink_Stroke2_Corner0_Rounded as ChainLinkIcon} from '#/components/icons/ChainLink'
 import {CircleInfo_Stroke2_Corner0_Rounded as CircleInfo} from '#/components/icons/CircleInfo'
 import {Hashtag_Stroke2_Corner0_Rounded as HashtagIcon} from '#/components/icons/Hashtag'
 import {Home_Stroke2_Corner2_Rounded as HomeIcon} from '#/components/icons/Home'
@@ -39,6 +45,8 @@ export function ContentAndMediaSettingsScreen({}: Props) {
   const setAutoplayDisabledPref = useSetAutoplayDisabled()
   const inAppBrowserPref = useInAppBrowser()
   const setUseInAppBrowser = useSetInAppBrowser()
+  const proxyExternalLinks = useProxyExternalLinks()
+  const setProxyExternalLinks = useSetProxyExternalLinks()
   const {enabled: trendingEnabled} = useTrendingConfig()
   const {trendingDisabled, trendingVideoDisabled} = useTrendingSettings()
   const {setTrendingDisabled, setTrendingVideoDisabled} =
@@ -113,6 +121,19 @@ export function ContentAndMediaSettingsScreen({}: Props) {
               </SettingsList.Item>
             </Toggle.Item>
           )}
+          <Toggle.Item
+            name="proxy_external_links"
+            label={_(msg`Open links through go.bsky.app`)}
+            value={proxyExternalLinks}
+            onChange={value => setProxyExternalLinks(value)}>
+            <SettingsList.Item>
+              <SettingsList.ItemIcon icon={ChainLinkIcon} />
+              <SettingsList.ItemText>
+                <Trans>Open links through go.bsky.app</Trans>
+              </SettingsList.ItemText>
+              <Toggle.Platform />
+            </SettingsList.Item>
+          </Toggle.Item>
           <Toggle.Item
             name="disable_autoplay"
             label={_(msg`Autoplay videos and GIFs`)}

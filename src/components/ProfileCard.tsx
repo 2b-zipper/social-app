@@ -11,12 +11,14 @@ import {RichText as RichTextApi} from '@bsky/sdk/richtext'
 import {useLingui} from '@lingui/react/macro'
 
 import {getModerationCauseKey} from '#/lib/moderation'
+import {getBypassedBlockCauses} from '#/lib/moderation/bypassBlocks'
 import {makeProfileLink} from '#/lib/routes/links'
 import {forceLTR} from '#/lib/strings/bidi'
 import {NON_BREAKING_SPACE} from '#/lib/strings/constants'
 import {sanitizeDisplayName} from '#/lib/strings/display-names'
 import {sanitizeHandle} from '#/lib/strings/handles'
 import {useProfileShadow} from '#/state/cache/profile-shadow'
+import {useBypassBlocks} from '#/state/preferences'
 import {useProfileFollowMutationQueue} from '#/state/queries/profile'
 import {useSession} from '#/state/session'
 import {PreviewableUserAvatar, UserAvatar} from '#/view/com/util/UserAvatar'
@@ -394,6 +396,7 @@ export function Description({
   numberOfLines?: number
 } & TextStyleProp) {
   const profile = useProfileShadow(profileUnshadowed)
+  const bypassBlocks = useBypassBlocks()
   const rt = useMemo(() => {
     if (!('description' in profile)) return
     const rt = new RichTextApi({text: profile.description || ''})
@@ -402,6 +405,7 @@ export function Description({
   }, [profile])
   if (!rt) return null
   if (
+    !bypassBlocks &&
     profile.viewer &&
     (profile.viewer.blockedBy ||
       profile.viewer.blocking ||
@@ -627,13 +631,23 @@ export function Labels({
   const modui = moderation.ui('profileList')
   const followedBy = profile.viewer?.followedBy
   const mutedOnlyReposts = profile.viewer?.mutedOnlyReposts
+  const blockCauses = getBypassedBlockCauses(moderation)
 
-  if (!followedBy && !mutedOnlyReposts && !modui.inform && !modui.alert) {
+  if (
+    !followedBy &&
+    !mutedOnlyReposts &&
+    !modui.inform &&
+    !modui.alert &&
+    !blockCauses.length
+  ) {
     return null
   }
 
   return (
     <Pills.Row style={[a.pt_xs]}>
+      {blockCauses.map(cause => (
+        <Pills.Label key={getModerationCauseKey(cause)} cause={cause} />
+      ))}
       {followedBy && <Pills.FollowsYou />}
       {modui.alerts.map(alert => (
         <Pills.Label key={getModerationCauseKey(alert)} cause={alert} />

@@ -514,8 +514,13 @@ function NavItem({
         a.gap_sm,
         a.outline_inset_1,
         a.transition_color,
+        isSelected && {backgroundColor: t.palette.primary_50},
       ]}
-      hoverStyle={t.atoms.bg_contrast_25}
+      hoverStyle={
+        isSelected
+          ? {backgroundColor: t.palette.primary_100}
+          : t.atoms.bg_contrast_50
+      }
       // @ts-expect-error the function signature differs on web -prf
       onPress={onPressWrapped}
       href={href}

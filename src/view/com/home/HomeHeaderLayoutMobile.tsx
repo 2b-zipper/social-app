@@ -103,17 +103,12 @@ export function HomeHeaderLayoutMobile({
                 hitSlop={HITSLOP_10}
                 label={_(msg`View your feeds and explore more`)}
                 size="small"
-                variant="ghost"
                 color="secondary"
                 shape="square"
                 onPress={() => {
                   ax.metric('nav:click', {item: 'feeds', surface: 'topBar'})
                 }}
-                style={[
-                  a.justify_center,
-                  {marginRight: -Layout.BUTTON_VISUAL_ALIGNMENT_OFFSET},
-                  a.bg_transparent,
-                ]}>
+                style={[a.justify_center, a.align_center]}>
                 <ButtonIcon icon={FeedsIcon} size="lg" />
               </Link>
             )}

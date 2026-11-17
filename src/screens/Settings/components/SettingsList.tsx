@@ -24,7 +24,7 @@ ItemContext.displayName = 'SettingsListItemContext'
 const Portal = createPortalGroup()
 
 export function Container({children}: {children: React.ReactNode}) {
-  return <View style={[a.flex_1, a.py_md]}>{children}</View>
+  return <View style={[a.flex_1, a.py_md, a.px_md, a.gap_2xs]}>{children}</View>
 }
 
 /**
@@ -44,12 +44,21 @@ export function Group({
   style?: StyleProp<ViewStyle>
   contentContainerStyle?: StyleProp<ViewStyle>
 }) {
+  const t = useTheme()
   const context = useMemo(
     () => ({destructive, withinGroup: true}),
     [destructive],
   )
   return (
-    <View style={[a.w_full, style]}>
+    <View
+      style={[
+        a.w_full,
+        a.rounded_lg,
+        a.curve_continuous,
+        t.atoms.bg_contrast_25,
+        a.py_xs,
+        style,
+      ]}>
       <Portal.Provider>
         <ItemContext.Provider value={context}>
           <Item style={[a.pb_2xs, {minHeight: 42}]}>
@@ -87,6 +96,7 @@ export function Item({
   iconInset?: boolean
   style?: StyleProp<ViewStyle>
 }) {
+  const t = useTheme()
   const context = useContext(ItemContext)
   const childContext = useMemo(() => {
     if (typeof destructive !== 'boolean') return context
@@ -111,6 +121,11 @@ export function Item({
             // gap
             a.gap_sm.gap,
         },
+        !context.withinGroup && [
+          a.rounded_lg,
+          a.curve_continuous,
+          t.atoms.bg_contrast_25,
+        ],
         style,
       ]}>
       <ItemContext.Provider value={childContext}>
@@ -139,7 +154,8 @@ export function LinkItem({
         <Item
           destructive={destructive}
           style={[
-            (args.hovered || args.pressed) && [t.atoms.bg_contrast_25],
+            props.style && a.bg_transparent,
+            (args.hovered || args.pressed) && [t.atoms.bg_contrast_50],
             contentContainerStyle,
           ]}>
           {typeof children === 'function' ? children(args) : children}
@@ -167,8 +183,9 @@ export function PressableItem({
         <Item
           destructive={destructive}
           style={[
+            props.style && a.bg_transparent,
             (args.hovered || args.pressed) && [
-              t.atoms.bg_contrast_25,
+              t.atoms.bg_contrast_50,
               hoverStyle,
             ],
             contentContainerStyle,
@@ -251,18 +268,7 @@ export function ItemText({
 }
 
 export function Divider({style}: ViewStyleProp) {
-  const t = useTheme()
-  return (
-    <View
-      style={[
-        a.border_t,
-        t.atoms.border_contrast_low,
-        a.w_full,
-        a.my_sm,
-        style,
-      ]}
-    />
-  )
+  return <View style={[a.w_full, a.my_xs, style]} />
 }
 
 export function Chevron({color: colorProp}: {color?: string}) {

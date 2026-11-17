@@ -1,6 +1,7 @@
 import {type Client} from '@atproto/lex'
 import {AtUri, type AtUriString, type HandleString} from '@atproto/syntax'
 
+import {getPublicClient} from '#/lib/api/public-agent'
 import {IMAGE_SIZE_CONFIG_2K_1MB} from '#/lib/constants'
 import {getLinkMeta, type LinkMeta} from '#/lib/link-meta/link-meta'
 import {createLinkPreviewTelemetry} from '#/lib/link-meta/linkPreviewTelemetry'
@@ -23,10 +24,34 @@ import {
 } from '#/lib/strings/url-helpers'
 import {type ComposerImage} from '#/state/gallery'
 import {createComposerImage} from '#/state/gallery'
+import * as persisted from '#/state/persisted'
 import {type ChatInvitePreview} from '#/state/queries/join-links'
+import {
+  embeddingRules,
+  POSTGATE_COLLECTION,
+} from '#/state/queries/postgate/util'
 import {type Gif} from '#/features/gifPicker/types'
 import {app, chat, com} from '#/lexicons'
+import * as bsky from '#/types/bsky'
 import {createGIFDescription} from '../gif-alt-text'
+
+async function isQuotingDisabled(client: Client, uri: AtUri) {
+  try {
+    const data = await client.call(com.atproto.repo.getRecord, {
+      repo: uri.host,
+      collection: POSTGATE_COLLECTION,
+      rkey: uri.rkeySafe,
+    })
+    return (
+      bsky.matches(app.bsky.feed.postgate, data.value) &&
+      !!data.value.embeddingRules?.some(
+        rule => rule.$type === embeddingRules.disableRule.$type,
+      )
+    )
+  } catch {
+    return false
+  }
+}
 
 type ResolvedExternalLink = {
   type: 'external'
@@ -212,11 +237,25 @@ export async function resolveLink(
       )
       urip.host = data.did
     }
-    const data = await appviewClient.call(app.bsky.feed.getPosts, {
-      uris: [urip.toString()],
-    })
+    const params = {uris: [urip.toString()]}
+    const data = await appviewClient.call(app.bsky.feed.getPosts, params)
     if (data.posts[0]) {
       return data.posts[0]
+    }
+    if (persisted.get('allowBlockedInteractions')) {
+      const publicClient = getPublicClient()
+      const publicPost = (
+        await publicClient.call(app.bsky.feed.getPosts, params)
+      ).posts[0]
+      if (publicPost) {
+        return {
+          ...publicPost,
+          viewer: {
+            ...publicPost.viewer,
+            embeddingDisabled: await isQuotingDisabled(publicClient, urip),
+          },
+        }
+      }
     }
     throw new Error('getPost: post not found')
   }

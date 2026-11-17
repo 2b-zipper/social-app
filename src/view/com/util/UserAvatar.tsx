@@ -52,6 +52,7 @@ import {Trash_Stroke2_Corner0_Rounded as TrashIcon} from '#/components/icons/Tra
 import {Link} from '#/components/Link'
 import {MediaInsetBorder} from '#/components/MediaInsetBorder'
 import * as Menu from '#/components/Menu'
+import {BlockedAvatarBadge} from '#/components/moderation/BlockedAvatarBadge'
 import {ProfileHoverCard} from '#/components/ProfileHoverCard'
 import {useAnalytics} from '#/analytics'
 import {IS_ANDROID, IS_NATIVE, IS_WEB, IS_WEB_TOUCH_DEVICE} from '#/env'
@@ -340,6 +341,11 @@ let UserAvatar = ({
         <LiveIndicator size={size > 32 ? 'small' : 'tiny'} />
       )}
       {alert}
+      <BlockedAvatarBadge
+        moderation={moderation}
+        size={size}
+        hasAlert={!!moderation?.alert}
+      />
     </View>
   ) : (
     <View style={containerStyle}>
@@ -349,6 +355,11 @@ let UserAvatar = ({
         <LiveIndicator size={size > 32 ? 'small' : 'tiny'} />
       )}
       {alert}
+      <BlockedAvatarBadge
+        moderation={moderation}
+        size={size}
+        hasAlert={!!moderation?.alert}
+      />
     </View>
   )
 }

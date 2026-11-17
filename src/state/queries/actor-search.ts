@@ -1,3 +1,4 @@
+import {type Client} from '@atproto/lex'
 import {
   type InfiniteData,
   keepPreviousData,
@@ -6,27 +7,50 @@ import {
   useInfiniteQuery,
 } from '@tanstack/react-query'
 
+import {getPublicClient} from '#/lib/api/public-agent'
+import {logger} from '#/logger'
 import {STALE} from '#/state/queries'
+import {hydrateProfiles} from '#/state/queries/profile-blocks'
 import {useAppviewClient} from '#/state/session'
 import {app} from '#/lexicons'
 
 export const RQKEY_ROOT = 'actor-search'
-export const RQKEY = (query: string, limit?: number) => [
-  RQKEY_ROOT,
-  query,
-  limit,
-]
+export const RQKEY = (
+  query: string,
+  limit?: number,
+  includeBlocked?: boolean,
+) => [RQKEY_ROOT, query, limit, includeBlocked]
+
+type SearchParams = {q: string; limit: number; cursor: string | undefined}
+
+async function searchIncludingBlocked(client: Client, params: SearchParams) {
+  const data = await getPublicClient().call(app.bsky.actor.searchActors, params)
+  const profiles = await hydrateProfiles(
+    client,
+    data.actors.map(actor => actor.did),
+  )
+  const viewers = new Map(profiles.map(profile => [profile.did, profile]))
+  return {
+    ...data,
+    actors: data.actors.map(actor => ({
+      ...actor,
+      viewer: viewers.get(actor.did)?.viewer,
+    })),
+  }
+}
 
 export function useActorSearch({
   query,
   enabled,
   maintainData,
   limit = 25,
+  includeBlocked = false,
 }: {
   query: string
   enabled?: boolean
   maintainData?: boolean
   limit?: number
+  includeBlocked?: boolean
 }) {
   const client = useAppviewClient()
   return useInfiniteQuery<
@@ -37,13 +61,19 @@ export function useActorSearch({
     string | undefined
   >({
     staleTime: STALE.MINUTES.FIVE,
-    queryKey: RQKEY(query, limit),
+    queryKey: RQKEY(query, limit, includeBlocked),
     queryFn: async ({pageParam}) => {
-      return await client.call(app.bsky.actor.searchActors, {
-        q: query,
-        limit,
-        cursor: pageParam,
-      })
+      const params = {q: query, limit, cursor: pageParam}
+      if (includeBlocked) {
+        try {
+          return await searchIncludingBlocked(client, params)
+        } catch (err) {
+          logger.warn('useActorSearch: logged-out search failed', {
+            safeMessage: err,
+          })
+        }
+      }
+      return await client.call(app.bsky.actor.searchActors, params)
     },
     enabled: enabled && !!query,
     initialPageParam: undefined,

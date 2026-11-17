@@ -485,28 +485,28 @@ export const Button = forwardRef<React.ComponentRef<typeof View>, ButtonProps>(
           baseStyles.push({
             paddingVertical: 12,
             paddingHorizontal: 25,
-            borderRadius: 10,
+            borderRadius: 16,
             gap: 3,
           })
         } else if (size === 'medium') {
           baseStyles.push({
             paddingVertical: 9,
             paddingHorizontal: 16,
-            borderRadius: 8,
+            borderRadius: 12,
             gap: 3,
           })
         } else if (size === 'small') {
           baseStyles.push({
             paddingVertical: 8,
             paddingHorizontal: 13,
-            borderRadius: 8,
+            borderRadius: 12,
             gap: 3,
           })
         } else if (size === 'tiny') {
           baseStyles.push({
             paddingVertical: 5,
             paddingHorizontal: 9,
-            borderRadius: 6,
+            borderRadius: 10,
             gap: 2,
           })
         }
@@ -546,10 +546,12 @@ export const Button = forwardRef<React.ComponentRef<typeof View>, ButtonProps>(
         } else if (shape === 'square') {
           if (size === 'tiny') {
             baseStyles.push({
-              borderRadius: 6,
+              borderRadius: 8,
             })
           } else {
-            baseStyles.push(a.rounded_sm)
+            baseStyles.push({
+              borderRadius: 14,
+            })
           }
         }
       }
@@ -596,6 +598,13 @@ export const Button = forwardRef<React.ComponentRef<typeof View>, ButtonProps>(
           ...(state.hovered || state.pressed
             ? [hoverStyles, hoverStyleProp]
             : []),
+          state.pressed &&
+            !disabled && [
+              {transform: [{scale: 0.97}]},
+              shape === 'default' && {
+                borderRadius: size === 'large' ? 16 : size === 'tiny' ? 8 : 12,
+              },
+            ],
         ]}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
@@ -638,7 +647,7 @@ export function useSharedButtonTextStyles() {
         }
       } else if (color === 'secondary') {
         if (!disabled) {
-          baseStyles.push(t.atoms.text_contrast_medium)
+          baseStyles.push(t.atoms.text_contrast_high)
         } else {
           baseStyles.push({
             color: t.palette.contrast_300,

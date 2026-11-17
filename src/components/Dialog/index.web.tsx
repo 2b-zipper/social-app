@@ -229,14 +229,14 @@ export function Inner({
         // note: flatten is required for some reason -sfn
         style={flatten([
           a.relative,
-          a.rounded_xl,
+          {borderRadius: 28},
           a.w_full,
           a.border,
           t.atoms.bg,
           {
             cursor: 'default', // The overlay applies `cursor: 'pointer'` to all children.
             maxWidth: 600,
-            borderColor: t.palette.contrast_200,
+            borderColor: t.palette.contrast_100,
             shadowColor: t.palette.black,
             shadowOpacity: t.name === 'light' ? 0.1 : 0.4,
             shadowRadius: 30,

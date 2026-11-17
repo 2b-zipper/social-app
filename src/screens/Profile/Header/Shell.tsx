@@ -160,7 +160,15 @@ let ProfileHeaderShell = ({
     <View style={t.atoms.bg} pointerEvents={IS_IOS ? 'auto' : 'box-none'}>
       <View
         pointerEvents={IS_IOS ? 'auto' : 'box-none'}
-        style={[a.relative, {height: PROFILE_BANNER_HEIGHT}]}>
+        style={[
+          a.relative,
+          {
+            height: PROFILE_BANNER_HEIGHT,
+            borderBottomLeftRadius: 28,
+            borderBottomRightRadius: 28,
+            overflow: 'hidden',
+          },
+        ]}>
         {!gtMobile && <StatusBarShadow />}
         <GrowableBanner
           testID={profile.banner ? 'userBannerImage' : 'userBannerFallback'}
@@ -269,7 +277,7 @@ let ProfileHeaderShell = ({
               {
                 width: 94,
                 height: 94,
-                borderWidth: live.isActive ? 3 : 2,
+                borderWidth: live.isActive ? 3 : 4,
                 borderColor: live.isActive
                   ? t.palette.negative_500
                   : t.atoms.bg.backgroundColor,

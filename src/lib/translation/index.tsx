@@ -9,9 +9,10 @@ import {useFocusEffect} from '@react-navigation/native'
 import {useGoogleTranslate} from '#/lib/hooks/useGoogleTranslate'
 import {codeToLanguageName} from '#/locale/helpers'
 import {logger} from '#/logger'
-import {useLanguagePrefs} from '#/state/preferences'
+import {useLanguagePrefs, useTranslationEngine} from '#/state/preferences'
 import {useAnalytics} from '#/analytics'
 import {IS_ANDROID, IS_IOS, IS_TRANSLATION_SUPPORTED} from '#/env'
+import {geminiTranslate} from '../../../modules/expo-gemini-translate'
 import {Context} from './context'
 import {
   type ContextType,
@@ -99,6 +100,39 @@ async function attemptTranslation(
   }
 }
 
+async function attemptGeminiTranslation(
+  input: string,
+  targetLangCodeOriginal: string,
+  sourceLangCodeOriginal: string | undefined,
+  appLanguage: string,
+): Promise<{
+  translatedText: string
+  targetLanguage: string
+  sourceLanguage: TranslationTaskResult['sourceLanguage']
+}> {
+  const targetLanguageName =
+    codeToLanguageName(targetLangCodeOriginal, appLanguage) ??
+    targetLangCodeOriginal
+
+  const translatedText = (
+    await geminiTranslate(input, targetLanguageName)
+  ).trim()
+
+  if (translatedText === input) {
+    throw new Error(E_SAME_AS_SOURCE_LANGUAGE)
+  }
+
+  if (translatedText === '') {
+    throw new Error(E_EMPTY_RESULT)
+  }
+
+  return {
+    translatedText,
+    targetLanguage: targetLangCodeOriginal,
+    sourceLanguage: sourceLangCodeOriginal ?? guessLanguage(input),
+  }
+}
+
 /**
  * Native translation hook. Attempts on-device translation using Apple
  * Translation (iOS 18+) or Google ML Kit (Android).
@@ -172,6 +206,7 @@ export function Provider({children}: React.PropsWithChildren<unknown>) {
   const langPrefs = useLanguagePrefs()
   const {t: l} = useLingui()
   const googleTranslate = useGoogleTranslate()
+  const engine = useTranslationEngine()
 
   const acquireTranslation = useCallback((key: string) => {
     refCounts.current.set(key, (refCounts.current.get(key) ?? 0) + 1)
@@ -238,9 +273,10 @@ export function Provider({children}: React.PropsWithChildren<unknown>) {
       },
       {key, forceGoogleTranslate},
     ) => {
-      const shouldForceGoogleTranslate = Boolean(
-        forceGoogleTranslateOverride ?? forceGoogleTranslate,
-      )
+      const shouldForceGoogleTranslate =
+        Boolean(
+          forceGoogleTranslateOverride ?? forceGoogleTranslate ?? false,
+        ) || engine === 'google'
 
       ax.metric('translate', {
         os: Platform.OS,
@@ -267,11 +303,19 @@ export function Provider({children}: React.PropsWithChildren<unknown>) {
         [key]: {status: 'loading'},
       }))
       try {
-        const result = await attemptTranslation(
-          text,
-          expectedTargetLanguage,
-          expectedSourceLanguage,
-        )
+        const result =
+          engine === 'gemini'
+            ? await attemptGeminiTranslation(
+                text,
+                expectedTargetLanguage,
+                expectedSourceLanguage,
+                langPrefs.appLanguage,
+              )
+            : await attemptTranslation(
+                text,
+                expectedTargetLanguage,
+                expectedSourceLanguage,
+              )
         ax.metric('translate:result', {
           success: true,
           os: Platform.OS,
@@ -335,7 +379,7 @@ export function Provider({children}: React.PropsWithChildren<unknown>) {
         }))
       }
     },
-    [ax, googleTranslate, l, langPrefs.appLanguage],
+    [ax, googleTranslate, l, langPrefs.appLanguage, engine],
   )
 
   const ctx = useMemo(

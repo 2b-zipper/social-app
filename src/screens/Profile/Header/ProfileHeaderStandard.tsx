@@ -14,6 +14,7 @@ import {useHaptics} from '#/lib/haptics'
 import {sanitizeDisplayName} from '#/lib/strings/display-names'
 import {logger} from '#/logger'
 import {type Shadow, useProfileShadow} from '#/state/cache/profile-shadow'
+import {useBypassBlocks} from '#/state/preferences'
 import {
   useProfileBlockMutationQueue,
   useProfileFollowMutationQueue,
@@ -45,6 +46,7 @@ import {GermButton, isGermButtonShown} from '../components/GermButton'
 import {ProfileHeaderDisplayName} from './DisplayName'
 import {EditProfileDialog} from './EditProfileDialog'
 import {ProfileHeaderHandle} from './Handle'
+import {ProfileHeaderJoinedDate} from './JoinedDate'
 import {ProfileHeaderMetrics} from './Metrics'
 import {ProfileHeaderShell} from './Shell'
 import {ProfileHeaderSuggestedFollows} from './SuggestedFollows'
@@ -68,6 +70,7 @@ let ProfileHeaderStandard = ({
     useProfileShadow<app.bsky.actor.defs.ProfileViewDetailed>(profileUnshadowed)
   const {currentAccount} = useSession()
   const {_} = useLingui()
+  const bypassBlocks = useBypassBlocks()
   const moderation = useMemo(
     () => moderateProfile(profile, moderationOpts),
     [profile, moderationOpts],
@@ -78,9 +81,10 @@ let ProfileHeaderStandard = ({
   const [hasSeenAllSuggestedFollows, setHasSeenAllSuggestedFollows] =
     useState(false)
   const isBlockedUser =
-    profile.viewer?.blocking ||
-    profile.viewer?.blockedBy ||
-    profile.viewer?.blockingByList
+    !bypassBlocks &&
+    (profile.viewer?.blocking ||
+      profile.viewer?.blockedBy ||
+      profile.viewer?.blockingByList)
 
   const unblockAccount = async () => {
     try {
@@ -175,6 +179,8 @@ let ProfileHeaderStandard = ({
                   ) : undefined
                 }
               />
+
+              <ProfileHeaderJoinedDate profile={profile} />
 
               {!isMe &&
                 !isBlockedUser &&

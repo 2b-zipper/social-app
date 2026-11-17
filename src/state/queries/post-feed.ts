@@ -20,6 +20,7 @@ import {DemoFeedAPI} from '#/lib/api/feed/demo'
 import {FollowingFeedAPI} from '#/lib/api/feed/following'
 import {HomeFeedAPI} from '#/lib/api/feed/home'
 import {LikesFeedAPI} from '#/lib/api/feed/likes'
+import {LikesRecordsFeedAPI} from '#/lib/api/feed/likes-records'
 import {ListFeedAPI} from '#/lib/api/feed/list'
 import {MergeFeedAPI} from '#/lib/api/feed/merge'
 import {PostListFeedAPI} from '#/lib/api/feed/posts'
@@ -155,7 +156,7 @@ export function usePostFeedQuery(
       f => f.pinned && f.value === 'following',
     ) ?? -1
   const enableFollowingToDiscoverFallback = followingPinnedIndex === 0
-  const {hasSession} = useSession()
+  const {hasSession, currentAccount} = useSession()
   const client = useAppviewClient()
   const lastRun = useRef<{
     data: InfiniteData<FeedPageUnselected>
@@ -202,6 +203,7 @@ export function usePostFeedQuery(
               feedParams: params || {},
               feedTuners,
               client,
+              currentDid: currentAccount?.did,
               // Not in the query key because they don't change:
               userInterests,
               // Not in the query key. Reacting to it switching isn't important:
@@ -410,6 +412,7 @@ function createApi({
   feedTuners,
   userInterests,
   client,
+  currentDid,
   enableFollowingToDiscoverFallback,
 }: {
   feedDesc: FeedDescriptor
@@ -417,6 +420,7 @@ function createApi({
   feedTuners: FeedTunerFn[]
   userInterests?: string
   client: Client
+  currentDid?: string
   enableFollowingToDiscoverFallback: boolean
 }) {
   if (feedDesc === 'following') {
@@ -446,10 +450,13 @@ function createApi({
     })
   } else if (feedDesc.startsWith('likes')) {
     const [__, actor] = feedDesc.split('|')
-    return new LikesFeedAPI({
-      client,
-      feedParams: {actor: actor as AtIdentifierString},
-    })
+    if (currentDid && actor === currentDid) {
+      return new LikesFeedAPI({
+        client,
+        feedParams: {actor: actor as AtIdentifierString},
+      })
+    }
+    return new LikesRecordsFeedAPI({client, feedParams: {actor}})
   } else if (feedDesc.startsWith('feedgen')) {
     const [__, feed] = feedDesc.split('|')
     return new CustomFeedAPI({

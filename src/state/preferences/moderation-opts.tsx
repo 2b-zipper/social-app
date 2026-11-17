@@ -2,10 +2,17 @@ import {createContext, useContext, useMemo} from 'react'
 import {Client} from '@atproto/lex'
 import {type ModerationOpts} from '@bsky/sdk/moderation'
 
-import {useHiddenPosts, useLabelDefinitions} from '#/state/preferences'
+import {installModerationBlockBypass} from '#/lib/moderation/bypassBlocks'
+import {
+  useBypassBlocks,
+  useHiddenPosts,
+  useLabelDefinitions,
+} from '#/state/preferences'
 import {DEFAULT_LOGGED_OUT_LABEL_PREFERENCES} from '#/state/queries/preferences/const'
 import {useSession} from '#/state/session'
 import {usePreferencesQuery} from '../queries/preferences'
+
+installModerationBlockBypass()
 
 export const moderationOptsContext = createContext<ModerationOpts | undefined>(
   undefined,
@@ -38,6 +45,7 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
   const prefs = usePreferencesQuery()
   const {labelDefs} = useLabelDefinitions()
   const hiddenPosts = useHiddenPosts() // TODO move this into pds-stored prefs
+  const bypassBlocks = useBypassBlocks()
 
   const userDid = currentAccount?.did
   const moderationPrefs = prefs.data?.moderationPrefs
@@ -45,6 +53,7 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
     if (!moderationPrefs) {
       return undefined
     }
+    void bypassBlocks
     return {
       userDid,
       prefs: {
@@ -64,7 +73,7 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
       },
       labelDefs,
     }
-  }, [userDid, labelDefs, moderationPrefs, hiddenPosts])
+  }, [userDid, labelDefs, moderationPrefs, hiddenPosts, bypassBlocks])
 
   return (
     <moderationOptsContext.Provider value={value}>
