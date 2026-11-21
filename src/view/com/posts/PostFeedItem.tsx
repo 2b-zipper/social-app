@@ -568,7 +568,7 @@ let PostContent = ({
       ) : (
         <ThreadItemPostNumber inline={false} value={postNumbering} />
       )}
-      {record && <TranslatedPost hideTranslateLink post={post} />}
+      {record && <TranslatedPost post={post} />}
       {postEmbed ? (
         <View
           style={[

@@ -60,8 +60,9 @@ export function TranslatedPost({
   }, [post, record, langPrefs])
   const needsTranslation = useMemo(() => {
     if (hideTranslateLink) return false
+    if (!record?.text?.trim()) return false
     return !isPostInLanguage(post, [langPrefs.primaryLanguage])
-  }, [hideTranslateLink, post, langPrefs.primaryLanguage])
+  }, [hideTranslateLink, post, record?.text, langPrefs.primaryLanguage])
 
   switch (translationState.status) {
     case 'loading':

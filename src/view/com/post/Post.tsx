@@ -239,7 +239,7 @@ function PostInner({
                   )}
                 </View>
               ) : undefined}
-              <TranslatedPost hideTranslateLink post={post} />
+              <TranslatedPost post={post} />
               {post.embed ? (
                 <View
                   style={maybeApplyGalleryOffsetStyles('embed', {
