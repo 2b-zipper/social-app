@@ -50,8 +50,10 @@ import {
   useBreakpoints,
   useLayoutBreakpoints,
   useTheme,
+  utils,
   web,
 } from '#/alf'
+import * as m3e from '#/alf/m3e'
 import {BetaTag} from '#/components/BetaTag'
 import {Button, ButtonIcon, ButtonText} from '#/components/Button'
 import {type DialogControlProps} from '#/components/Dialog'
@@ -501,8 +503,10 @@ function NavItem({
     [navigation, href, isCurrent, ax, navItem, onNavigateTab, tab],
   )
 
-  const Icon =
-    isSelected || (!IS_NATIVE && isRelated) ? icons.active : icons.inactive
+  const c = m3e.colors(t)
+  const isActive = isSelected || (!IS_NATIVE && isRelated)
+  const Icon = isActive ? icons.active : icons.inactive
+  const contentColor = isActive ? c.onSecondaryContainer : c.onSurfaceVariant
 
   return (
     <PressableWithHover
@@ -514,13 +518,13 @@ function NavItem({
         a.gap_sm,
         a.outline_inset_1,
         a.transition_color,
-        isSelected && {backgroundColor: t.palette.primary_50},
+        isActive && {backgroundColor: c.secondaryContainer},
       ]}
-      hoverStyle={
-        isSelected
-          ? {backgroundColor: t.palette.primary_100}
-          : t.atoms.bg_contrast_50
-      }
+      hoverStyle={{
+        backgroundColor: isActive
+          ? c.primaryContainer
+          : utils.alpha(contentColor, m3e.stateLayer.hovered),
+      }}
       // @ts-expect-error the function signature differs on web -prf
       onPress={onPressWrapped}
       href={href}
@@ -539,7 +543,11 @@ function NavItem({
           },
           a.z_10,
         ]}>
-        <Icon aria-hidden={true} width={NAV_ICON_WIDTH} style={t.atoms.text} />
+        <Icon
+          aria-hidden={true}
+          width={NAV_ICON_WIDTH}
+          style={{color: contentColor}}
+        />
         {typeof count === 'string' && count ? (
           <View
             style={[
@@ -566,8 +574,8 @@ function NavItem({
                 {
                   top: '-10%',
                   left: count.length === 1 ? 12 : 8,
-                  backgroundColor: t.palette.primary_500,
-                  color: t.palette.white,
+                  backgroundColor: c.error,
+                  color: c.onError,
                   lineHeight: a.text_sm.fontSize,
                   paddingHorizontal: 4,
                   paddingVertical: 1,
@@ -584,7 +592,7 @@ function NavItem({
               a.rounded_full,
               a.z_20,
               {
-                backgroundColor: t.palette.primary_500,
+                backgroundColor: c.error,
                 width: 8,
                 height: 8,
                 right: -2,
@@ -596,7 +604,12 @@ function NavItem({
       </View>
       {!minimal && (
         <View style={[a.flex_row, a.align_center, a.gap_sm]}>
-          <Text style={[a.text_xl, isSelected ? a.font_bold : a.font_normal]}>
+          <Text
+            style={[
+              a.text_xl,
+              isActive ? a.font_bold : a.font_medium,
+              {color: contentColor},
+            ]}>
             {label}
           </Text>
           {beta && <BetaTag />}

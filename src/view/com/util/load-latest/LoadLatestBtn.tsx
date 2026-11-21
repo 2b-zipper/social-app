@@ -1,5 +1,13 @@
+import {useEffect} from 'react'
 import {StyleSheet, useWindowDimensions} from 'react-native'
-import Animated, {ZoomIn, ZoomOut} from 'react-native-reanimated'
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  ZoomIn,
+  ZoomOut,
+} from 'react-native-reanimated'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {useMediaQuery} from 'react-responsive'
 
@@ -72,6 +80,21 @@ export function LoadLatestBtn({
     ? c.onPrimaryContainer
     : c.onSecondaryContainer
 
+  const webScale = useSharedValue(IS_NATIVE ? 1 : 0)
+  useEffect(() => {
+    if (!IS_NATIVE) {
+      webScale.set(
+        withTiming(1, {
+          duration: 120,
+          easing: Easing.bezier(0.05, 0.7, 0.1, 1),
+        }),
+      )
+    }
+  }, [webScale])
+  const webAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{scale: webScale.get()}],
+  }))
+
   return (
     <Animated.View
       testID="loadLatestBtn"
@@ -96,6 +119,7 @@ export function LoadLatestBtn({
         showBottomBar && fabMinimalShellTransform,
       ]}>
       <Animated.View
+        style={!IS_NATIVE ? webAnimatedStyle : undefined}
         entering={IS_NATIVE ? enter : undefined}
         exiting={IS_NATIVE ? exit : undefined}>
         <PressableScale

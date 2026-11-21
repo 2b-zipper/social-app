@@ -1,7 +1,7 @@
 import '#/logger/sentry/setup' // must be near top
 import './style.css'
 
-import {Fragment, useEffect, useState} from 'react'
+import {Fragment, useDeferredValue, useEffect, useMemo, useState} from 'react'
 import {KeyboardProvider as KeyboardControllerProvider} from 'react-native-keyboard-controller'
 import {SafeAreaProvider} from 'react-native-safe-area-context'
 import {BackgroundNotificationPreferencesProvider} from '@bsky.app/expo-background-notification-handler/src/BackgroundNotificationHandlerProvider'
@@ -27,7 +27,11 @@ import {listenSessionDropped} from '#/state/events'
 import {Provider as HomeBadgeProvider} from '#/state/home-badge'
 import {MessagesProvider} from '#/state/messages'
 import {init as initPersistedState} from '#/state/persisted'
-import {Provider as PrefsStateProvider} from '#/state/preferences'
+import {
+  Provider as PrefsStateProvider,
+  useCustomThemeHex,
+  useThemeColorPreset,
+} from '#/state/preferences'
 import {BetaUserStorageSync} from '#/state/preferences/beta-user-sync'
 import {Provider as LabelDefsProvider} from '#/state/preferences/label-defs'
 import {Provider as ModerationOptsProvider} from '#/state/preferences/moderation-opts'
@@ -50,6 +54,7 @@ import {Provider as SelectedFeedProvider} from '#/state/shell/selected-feed'
 import {Provider as HiddenRepliesProvider} from '#/state/threadgate-hidden-replies'
 import {Shell} from '#/view/shell/index'
 import {ThemeProvider as Alf} from '#/alf'
+import {getWebMaterialYouThemes} from '#/alf/materialYou'
 import {useColorModeTheme} from '#/alf/util/useColorModeTheme'
 import {Provider as ContextMenuProvider} from '#/components/ContextMenu'
 import {useLandingEntry} from '#/components/hooks/useLandingEntry'
@@ -95,7 +100,17 @@ function InnerApp() {
   const [isReady, setIsReady] = useState(false)
   const {currentAccount} = useSession()
   const {resumeSession} = useSessionApi()
-  const theme = useColorModeTheme()
+  const theme = useDeferredValue(useColorModeTheme())
+  const themeColorPreset = useDeferredValue(useThemeColorPreset())
+  const customThemeHex = useDeferredValue(useCustomThemeHex())
+  const materialYouThemes = useMemo(
+    () =>
+      getWebMaterialYouThemes({
+        preset: themeColorPreset,
+        customHex: customThemeHex,
+      }),
+    [themeColorPreset, customThemeHex],
+  )
   const {t: l} = useLingui()
   const hasCheckedLanding = useLandingEntry()
 
@@ -126,7 +141,7 @@ function InnerApp() {
   }, [l])
 
   return (
-    <Alf theme={theme}>
+    <Alf theme={theme} themesOverride={materialYouThemes}>
       <ThemeProvider theme={theme}>
         <ContextMenuProvider>
           <Splash isReady={isReady && hasCheckedLanding}>

@@ -29,7 +29,7 @@ export function ProfileHeaderJoinedDate({
 
   if (!profile.createdAt) return null
 
-  const joinedDate = i18n.date(new Date(profile.createdAt), {
+  const createdAt = i18n.date(new Date(profile.createdAt), {
     dateStyle: 'long',
   })
 
@@ -53,7 +53,7 @@ export function ProfileHeaderJoinedDate({
             />
             <Text
               style={[a.text_sm, a.leading_snug, t.atoms.text_contrast_medium]}>
-              <Trans>Joined {joinedDate}</Trans>
+              <Trans>Joined {createdAt}</Trans>
             </Text>
           </View>
         )}

@@ -36,7 +36,14 @@ export {useHiddenPosts, useHiddenPostsApi} from './hidden-posts'
 export {useHideTabLabels, useSetHideTabLabels} from './hide-tab-labels'
 export {useLabelDefinitions} from './label-defs'
 export {useLanguagePrefs, useLanguagePrefsApi} from './languages'
-export {useMaterialYou, useSetMaterialYou} from './material-you'
+export {
+  useCustomThemeHex,
+  useMaterialYou,
+  useSetCustomThemeHex,
+  useSetMaterialYou,
+  useSetThemeColorPreset,
+  useThemeColorPreset,
+} from './material-you'
 export {
   useProxyExternalLinks,
   useSetProxyExternalLinks,

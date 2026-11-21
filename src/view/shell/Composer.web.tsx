@@ -8,8 +8,9 @@ import {useA11y} from '#/state/a11y'
 import {type ComposerOpts, useComposerState} from '#/state/shell/composer'
 import {ComposePost, useComposerCancelRef} from '#/view/com/composer/Composer'
 import {atoms as a, flatten, useBreakpoints, useTheme} from '#/alf'
+import * as m3e from '#/alf/m3e'
 
-const BOTTOM_BAR_HEIGHT = 61
+const BOTTOM_BAR_HEIGHT = 65
 
 export function Composer() {
   const state = useComposerState()
@@ -30,6 +31,7 @@ export function Composer() {
 function Inner({state}: {state: ComposerOpts}) {
   const ref = useComposerCancelRef()
   const t = useTheme()
+  const c = m3e.colors(t)
   const {gtMobile} = useBreakpoints()
   const {reduceMotionEnabled} = useA11y()
 
@@ -43,7 +45,7 @@ function Inner({state}: {state: ComposerOpts}) {
         style={flatten([
           {position: 'fixed'},
           a.inset_0,
-          {backgroundColor: '#000c'},
+          {backgroundColor: c.scrim},
           a.flex,
           a.flex_col,
           a.align_center,
@@ -57,10 +59,10 @@ function Inner({state}: {state: ComposerOpts}) {
             styles.container,
             !gtMobile && styles.containerMobile,
             t.atoms.bg,
-            t.atoms.border_contrast_medium,
+            t.atoms.shadow_xl,
+            {borderColor: c.outlineVariant},
             !reduceMotionEnabled && [
               a.zoom_fade_in,
-              {animationDelay: 0.1},
               {animationFillMode: 'backwards'},
             ],
           ]}>
@@ -73,6 +75,7 @@ function Inner({state}: {state: ComposerOpts}) {
             mention={state.mention}
             text={state.text}
             imageUris={state.imageUris}
+            videoUri={state.videoUri}
             openGallery={state.openGallery}
           />
         </View>
@@ -87,7 +90,7 @@ const styles = StyleSheet.create({
     maxWidth: 600,
     width: '100%',
     paddingVertical: 0,
-    borderRadius: 8,
+    borderRadius: 25,
     marginBottom: 0,
     borderWidth: 1,
     maxHeight: 'calc(100% - (40px * 2))',

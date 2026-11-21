@@ -1,11 +1,14 @@
 import {useEffect, useState} from 'react'
 import {i18n, type Messages} from '@lingui/core'
+import {compileMessage} from '@lingui/message-utils/compileMessage'
 import {type Locale} from 'date-fns/locale'
 import {enUS as defaultLocale} from 'date-fns/locale/en-US'
 
 import {sanitizeAppLanguageSetting} from '#/locale/helpers'
 import {AppLanguage} from '#/locale/languages'
 import {useLanguagePrefs} from '#/state/preferences'
+
+i18n.setMessagesCompiler(compileMessage)
 
 /**
  * We do a dynamic import of just the catalog that we need

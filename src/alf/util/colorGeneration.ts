@@ -114,7 +114,7 @@ function relativeLuminance({
   return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b)
 }
 
-function rgbToHsl(
+export function rgbToHsl(
   r: number,
   g: number,
   b: number,
@@ -146,7 +146,7 @@ function rgbToHsl(
   return {h: h * 360, s: s * 100, l: l * 100}
 }
 
-function hslToRgb(
+export function hslToRgb(
   h: number,
   s: number,
   l: number,

@@ -2270,12 +2270,13 @@ function ComposerFooter({
     <View
       style={[
         a.flex_row,
-        a.py_xs,
-        {paddingLeft: 7, paddingRight: 16},
+        IS_WEB
+          ? {paddingVertical: 6, paddingLeft: 6, paddingRight: 16}
+          : [a.py_xs, {paddingLeft: 7, paddingRight: 16}],
         a.align_center,
         a.border_t,
         t.atoms.bg,
-        t.atoms.border_contrast_medium,
+        IS_WEB ? t.atoms.border_contrast_low : t.atoms.border_contrast_medium,
         a.justify_between,
       ]}>
       <View style={[a.flex_row, a.align_center]}>
@@ -2690,7 +2691,6 @@ function ToolbarWrapper({
   style: StyleProp<ViewStyle>
   children: React.ReactNode
 }) {
-  if (IS_WEB) return children
   return (
     <Animated.View
       style={style}

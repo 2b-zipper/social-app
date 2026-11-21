@@ -12,6 +12,7 @@ import {Image} from 'expo-image'
 
 import {useLogoVariant} from '#/view/icons/useLogoVariant'
 import {flatten, useTheme} from '#/alf'
+import {IS_WEB} from '#/env'
 
 const ratio = 57 / 64
 
@@ -42,7 +43,7 @@ export const Logo = forwardRef(function LogoImpl(props: Props, ref) {
   const logoVariant = useLogoVariant(allowVariants)
 
   if (logoVariant === 'kawaii') {
-    const height = size * KAWAII_SCALE
+    const height = IS_WEB ? size : size * KAWAII_SCALE
     return (
       <Image
         source={

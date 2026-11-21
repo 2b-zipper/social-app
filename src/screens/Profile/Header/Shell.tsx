@@ -274,9 +274,11 @@ let ProfileHeaderShell = ({
             style={[
               t.atoms.bg,
               a.rounded_full,
+              a.align_center,
+              a.justify_center,
               {
-                width: 94,
-                height: 94,
+                width: live.isActive ? 94 : 98,
+                height: live.isActive ? 94 : 98,
                 borderWidth: live.isActive ? 3 : 4,
                 borderColor: live.isActive
                   ? t.palette.negative_500

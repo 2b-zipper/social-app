@@ -1,4 +1,5 @@
-import {useCallback} from 'react'
+import {useCallback, useState} from 'react'
+import {Pressable, View} from 'react-native'
 import Animated, {
   FadeInUp,
   FadeOutUp,
@@ -14,16 +15,24 @@ import {
   type NativeStackScreenProps,
 } from '#/lib/routes/types'
 import {
+  useCustomThemeHex,
   useHideTabLabels,
   useMaterialYou,
+  useSetCustomThemeHex,
   useSetHideTabLabels,
   useSetMaterialYou,
+  useSetThemeColorPreset,
+  useThemeColorPreset,
 } from '#/state/preferences'
 import {useKawaiiMode, useSetKawaiiMode} from '#/state/preferences/kawaii'
 import {useSetThemePrefs, useThemePrefs} from '#/state/shell'
 import {type Alf, atoms as a, native, useAlf, useTheme} from '#/alf'
+import * as m3e from '#/alf/m3e'
+import {THEME_COLOR_PRESETS} from '#/alf/materialYou'
 import * as SegmentedControl from '#/components/forms/SegmentedControl'
+import * as TextField from '#/components/forms/TextField'
 import * as Toggle from '#/components/forms/Toggle'
+import {CheckThick_Stroke2_Corner0_Rounded as CheckIcon} from '#/components/icons/Check'
 import {type Props as SVGIconProps} from '#/components/icons/common'
 import {EyeSlash_Stroke2_Corner0_Rounded as EyeSlashIcon} from '#/components/icons/EyeSlash'
 import {Moon_Stroke2_Corner0_Rounded as MoonIcon} from '#/components/icons/Moon'
@@ -34,7 +43,7 @@ import {TextSize_Stroke2_Corner0_Rounded as TextSize} from '#/components/icons/T
 import {TitleCase_Stroke2_Corner0_Rounded as Aa} from '#/components/icons/TitleCase'
 import * as Layout from '#/components/Layout'
 import {Text} from '#/components/Typography'
-import {IS_ANDROID, IS_NATIVE} from '#/env'
+import {IS_ANDROID, IS_WEB} from '#/env'
 import * as SettingsList from './components/SettingsList'
 
 type Props = NativeStackScreenProps<CommonNavigatorParams, 'AppearanceSettings'>
@@ -45,8 +54,15 @@ export function AppearanceSettingsScreen({}: Props) {
   const {colorMode, darkTheme} = useThemePrefs()
   const {setColorMode, setDarkTheme} = useSetThemePrefs()
 
+  const t = useTheme()
+  const c = m3e.colors(t)
   const materialYou = useMaterialYou()
   const setMaterialYou = useSetMaterialYou()
+  const themeColorPreset = useThemeColorPreset()
+  const setThemeColorPreset = useSetThemeColorPreset()
+  const customThemeHex = useCustomThemeHex()
+  const setCustomThemeHex = useSetCustomThemeHex()
+  const [hexDraft, setHexDraft] = useState(customThemeHex)
   const hideTabLabels = useHideTabLabels()
   const setHideTabLabels = useSetHideTabLabels()
   const kawaii = useKawaiiMode()
@@ -206,29 +222,131 @@ export function AppearanceSettingsScreen({}: Props) {
                 </>
               )}
 
-              {IS_NATIVE && (
+              {IS_WEB && (
                 <>
                   <SettingsList.Divider />
 
-                  <SettingsList.Group contentContainerStyle={[a.gap_sm]}>
-                    <SettingsList.ItemIcon icon={EyeSlashIcon} />
+                  <SettingsList.Group contentContainerStyle={[a.gap_md]}>
+                    <SettingsList.ItemIcon icon={PaletteIcon} />
                     <SettingsList.ItemText>
-                      <Trans>Tab labels</Trans>
+                      <Trans>Material You</Trans>
                     </SettingsList.ItemText>
-                    <Toggle.Item
-                      name="hide_tab_labels"
-                      label={_(msg`Hide labels on the bottom tabs`)}
-                      value={hideTabLabels}
-                      onChange={value => setHideTabLabels(value)}
-                      style={[a.w_full]}>
-                      <Toggle.LabelText style={[a.flex_1]}>
-                        <Trans>Hide labels on the bottom tabs</Trans>
-                      </Toggle.LabelText>
-                      <Toggle.Platform />
-                    </Toggle.Item>
+                    <View style={[a.w_full, a.gap_sm]}>
+                      <Text
+                        style={[
+                          a.text_sm,
+                          a.leading_snug,
+                          t.atoms.text_contrast_medium,
+                        ]}>
+                        <Trans>
+                          Choose an accent and surface color palette.
+                        </Trans>
+                      </Text>
+                      <View style={[a.flex_row, a.flex_wrap, a.gap_sm]}>
+                        {THEME_COLOR_PRESETS.map(preset => {
+                          const selected = themeColorPreset === preset.id
+                          const swatchColor =
+                            preset.id === 'custom' ? customThemeHex : preset.hex
+                          return (
+                            <Pressable
+                              key={preset.id}
+                              accessibilityRole="radio"
+                              accessibilityState={{selected}}
+                              accessibilityLabel={preset.label}
+                              accessibilityHint=""
+                              onPress={() => setThemeColorPreset(preset.id)}
+                              style={[
+                                a.flex_row,
+                                a.align_center,
+                                a.gap_xs,
+                                a.px_md,
+                                a.py_sm,
+                                a.rounded_full,
+                                {
+                                  backgroundColor: selected
+                                    ? c.secondaryContainer
+                                    : c.surfaceContainer,
+                                  borderWidth: 1.5,
+                                  borderColor: selected
+                                    ? c.primary
+                                    : c.outlineVariant,
+                                },
+                              ]}>
+                              <View
+                                style={[
+                                  a.rounded_full,
+                                  a.align_center,
+                                  a.justify_center,
+                                  {
+                                    width: 18,
+                                    height: 18,
+                                    backgroundColor: swatchColor,
+                                  },
+                                ]}>
+                                {selected && (
+                                  <CheckIcon size="xs" fill="#FFFFFF" />
+                                )}
+                              </View>
+                              <Text
+                                style={[
+                                  a.text_sm,
+                                  selected ? a.font_bold : a.font_medium,
+                                  {
+                                    color: selected
+                                      ? c.onSecondaryContainer
+                                      : c.onSurface,
+                                  },
+                                ]}>
+                                {preset.label}
+                              </Text>
+                            </Pressable>
+                          )
+                        })}
+                      </View>
+                      {themeColorPreset === 'custom' && (
+                        <View style={[a.w_full, a.pt_xs]}>
+                          <TextField.Root>
+                            <TextField.Input
+                              label={_(msg`Custom hex color (#RRGGBB)`)}
+                              value={hexDraft}
+                              autoCapitalize="characters"
+                              onChangeText={val => {
+                                setHexDraft(val)
+                                const cleaned = val.startsWith('#')
+                                  ? val
+                                  : `#${val}`
+                                if (/^#[0-9a-fA-F]{6}$/.test(cleaned)) {
+                                  setCustomThemeHex(cleaned)
+                                }
+                              }}
+                            />
+                          </TextField.Root>
+                        </View>
+                      )}
+                    </View>
                   </SettingsList.Group>
                 </>
               )}
+
+              <SettingsList.Divider />
+
+              <SettingsList.Group contentContainerStyle={[a.gap_sm]}>
+                <SettingsList.ItemIcon icon={EyeSlashIcon} />
+                <SettingsList.ItemText>
+                  <Trans>Tab labels</Trans>
+                </SettingsList.ItemText>
+                <Toggle.Item
+                  name="hide_tab_labels"
+                  label={_(msg`Hide labels on the bottom tabs`)}
+                  value={hideTabLabels}
+                  onChange={value => setHideTabLabels(value)}
+                  style={[a.w_full]}>
+                  <Toggle.LabelText style={[a.flex_1]}>
+                    <Trans>Hide labels on the bottom tabs</Trans>
+                  </Toggle.LabelText>
+                  <Toggle.Platform />
+                </Toggle.Item>
+              </SettingsList.Group>
 
               <SettingsList.Divider />
 

@@ -1,17 +1,23 @@
-import {useCallback} from 'react'
+import {useCallback, useEffect} from 'react'
 import {View} from 'react-native'
-import Animated from 'react-native-reanimated'
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated'
 import {msg, plural} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 import {Trans} from '@lingui/react/macro'
 import {useNavigationState} from '@react-navigation/native'
 
-import {useHideBottomBarBorder} from '#/lib/hooks/useHideBottomBarBorder'
 import {useMinimalShellFooterTransform} from '#/lib/hooks/useMinimalShellTransform'
 import {getCurrentRoute, isTab} from '#/lib/routes/helpers'
 import {makeProfileLink} from '#/lib/routes/links'
 import {type CommonNavigatorParams} from '#/lib/routes/types'
 import {useHomeBadge} from '#/state/home-badge'
+import {useHideTabLabels} from '#/state/preferences'
 import {useUnreadMessageCount} from '#/state/queries/messages/list-conversations'
 import {useUnreadNotifications} from '#/state/queries/notifications/unread'
 import {useProfileQuery} from '#/state/queries/profile'
@@ -24,6 +30,7 @@ import {UserAvatar} from '#/view/com/util/UserAvatar'
 import {Logo} from '#/view/icons/Logo'
 import {Logotype} from '#/view/icons/Logotype'
 import {atoms as a, useTheme} from '#/alf'
+import * as m3e from '#/alf/m3e'
 import {Button, ButtonText} from '#/components/Button'
 import {useDialogControl} from '#/components/Dialog'
 import {SwitchAccountDialog} from '#/components/dialogs/SwitchAccount'
@@ -31,6 +38,7 @@ import {
   Bell_Filled_Corner0_Rounded as BellFilled,
   Bell_Stroke2_Corner0_Rounded as Bell,
 } from '#/components/icons/Bell'
+import {type Props as SVGIconProps} from '#/components/icons/common'
 import {
   HomeOpen_Filled_Corner0_Rounded as HomeFilled,
   HomeOpen_Stoke2_Corner0_Rounded as Home,
@@ -47,28 +55,32 @@ import {Text} from '#/components/Typography'
 import {useAgeAssurance} from '#/ageAssurance'
 import {useAnalytics} from '#/analytics'
 import {isFollowingV2HomeDotEnabled} from '#/features/followingV2/eligibility'
-import {styles} from './BottomBarStyles'
+import {useActorStatus} from '#/features/liveNow'
+import {styles, useNavBarHeight} from './BottomBarStyles'
 
 type NavItemValue = 'home' | 'search' | 'chat' | 'notifications' | 'profile'
+const ICON_SIZE = 24
+const AVATAR_SIZE = 26
 
 export function BottomBarWeb() {
   const {_} = useLingui()
   const {hasSession, currentAccount} = useSession()
   const t = useTheme()
+  const c = m3e.colors(t)
+  const navBarHeight = useNavBarHeight()
   const footerMinimalShellTransform = useMinimalShellFooterTransform()
   const {requestSwitchToAccount} = useLoggedOutViewControls()
   const closeAllActiveElements = useCloseAllActiveElements()
   const {footerHeight} = useShellLayout()
-  const hideBorder = useHideBottomBarBorder()
   const accountSwitchControl = useDialogControl()
   const {data: profile} = useProfileQuery({did: currentAccount?.did})
-  const iconWidth = 26
 
   const unreadMessageCount = useUnreadMessageCount()
   const notificationCountStr = useUnreadNotifications()
   const hasHomeBadge = useHomeBadge()
   const ax = useAnalytics()
   const aa = useAgeAssurance()
+  const {isActive: live} = useActorStatus(profile)
   const isLabeler = profile?.associated?.labeler
 
   const showSignIn = useCallback(() => {
@@ -79,7 +91,6 @@ export function BottomBarWeb() {
   const showCreateAccount = useCallback(() => {
     closeAllActiveElements()
     requestSwitchToAccount({requestedAccount: 'new'})
-    // setShowLoggedOut(true)
   }, [requestSwitchToAccount, closeAllActiveElements])
 
   const onLongPressProfile = useCallback(() => {
@@ -95,203 +106,167 @@ export function BottomBarWeb() {
         style={[
           styles.bottomBar,
           styles.bottomBarWeb,
-          t.atoms.bg,
-          hideBorder
-            ? {borderColor: t.atoms.bg.backgroundColor}
-            : t.atoms.border_contrast_low,
+          {
+            backgroundColor: c.surfaceContainer,
+            borderTopWidth: 0,
+            paddingBottom: 8,
+          },
           footerMinimalShellTransform,
         ]}
         onLayout={event => footerHeight.set(event.nativeEvent.layout.height)}>
         {hasSession ? (
-          <>
+          <View
+            style={[styles.items, a.w_full, {height: navBarHeight}]}
+            accessibilityRole="tablist">
             <NavItem
               routeName="Home"
               href="/"
               navItem="home"
-              hasNew={hasHomeBadge && isFollowingV2HomeDotEnabled(ax)}>
-              {({isActive}) => {
-                const Icon = isActive ? HomeFilled : Home
-                return (
-                  <Icon
-                    aria-hidden={true}
-                    width={iconWidth + 1}
-                    style={[styles.ctrlIcon, t.atoms.text, styles.homeIcon]}
+              label={_(msg`Home`)}
+              icon={Home}
+              activeIcon={HomeFilled}
+              hasNew={hasHomeBadge && isFollowingV2HomeDotEnabled(ax)}
+            />
+            <NavItem
+              routeName="Search"
+              href="/search"
+              navItem="search"
+              label={_(msg`Search`)}
+              icon={MagnifyingGlass}
+              activeIcon={MagnifyingGlassFilled}
+            />
+            <NavItem
+              routeName="Messages"
+              href="/messages"
+              navItem="chat"
+              label={_(msg`Chat`)}
+              icon={Message}
+              activeIcon={MessageFilled}
+              notificationCount={
+                aa.flags.chatDisabled ? undefined : unreadMessageCount.numUnread
+              }
+              hasNew={aa.flags.chatDisabled ? false : unreadMessageCount.hasNew}
+            />
+            <NavItem
+              routeName="Notifications"
+              href="/notifications"
+              navItem="notifications"
+              label={_(msg`Notifications`)}
+              icon={Bell}
+              activeIcon={BellFilled}
+              notificationCount={notificationCountStr}
+            />
+            <NavItem
+              routeName="Profile"
+              href={
+                currentAccount
+                  ? makeProfileLink({
+                      did: currentAccount.did,
+                      handle: currentAccount.handle,
+                    })
+                  : '/'
+              }
+              navItem="profile"
+              label={_(msg`Profile`)}
+              onLongPress={onLongPressProfile}
+              renderIcon={active => (
+                <View
+                  style={{
+                    padding: 1.5,
+                    borderWidth: live ? 0 : 1.5,
+                    borderRadius: isLabeler ? 6 : AVATAR_SIZE,
+                    borderColor: active
+                      ? c.onSecondaryContainer
+                      : 'transparent',
+                  }}>
+                  <UserAvatar
+                    avatar={profile?.avatar}
+                    size={AVATAR_SIZE - 6}
+                    type={isLabeler ? 'labeler' : 'user'}
+                    live={live}
+                    hideLiveBadge
                   />
-                )
-              }}
-            </NavItem>
-            <NavItem routeName="Search" href="/search" navItem="search">
-              {({isActive}) => {
-                const Icon = isActive ? MagnifyingGlassFilled : MagnifyingGlass
-                return (
-                  <Icon
-                    aria-hidden={true}
-                    width={iconWidth + 2}
-                    style={[styles.ctrlIcon, t.atoms.text, styles.searchIcon]}
-                  />
-                )
-              }}
-            </NavItem>
-
-            {hasSession && (
-              <>
-                <NavItem
-                  routeName="Messages"
-                  href="/messages"
-                  navItem="chat"
-                  notificationCount={
-                    aa.flags.chatDisabled
-                      ? undefined
-                      : unreadMessageCount.numUnread
-                  }
-                  hasNew={
-                    aa.flags.chatDisabled ? false : unreadMessageCount.hasNew
-                  }>
-                  {({isActive}) => {
-                    const Icon = isActive ? MessageFilled : Message
-                    return (
-                      <Icon
-                        aria-hidden={true}
-                        width={iconWidth - 1}
-                        style={[
-                          styles.ctrlIcon,
-                          t.atoms.text,
-                          styles.messagesIcon,
-                        ]}
-                      />
-                    )
-                  }}
-                </NavItem>
-                <NavItem
-                  routeName="Notifications"
-                  href="/notifications"
-                  navItem="notifications"
-                  notificationCount={notificationCountStr}>
-                  {({isActive}) => {
-                    const Icon = isActive ? BellFilled : Bell
-                    return (
-                      <Icon
-                        aria-hidden={true}
-                        width={iconWidth}
-                        style={[styles.ctrlIcon, t.atoms.text, styles.bellIcon]}
-                      />
-                    )
-                  }}
-                </NavItem>
-                <NavItem
-                  routeName="Profile"
-                  href={
-                    currentAccount
-                      ? makeProfileLink({
-                          did: currentAccount.did,
-                          handle: currentAccount.handle,
-                        })
-                      : '/'
-                  }
-                  navItem="profile"
-                  onLongPress={onLongPressProfile}>
-                  {({isActive}) => (
-                    <View style={styles.ctrlIconSizingWrapper}>
-                      <View
-                        style={[
-                          styles.ctrlIcon,
-                          isLabeler
-                            ? styles.profileIconSquare
-                            : styles.profileIcon,
-                          isActive && [
-                            isLabeler
-                              ? styles.onProfileSquare
-                              : styles.onProfile,
-                            {borderColor: t.atoms.text.color},
-                          ],
-                        ]}>
-                        <UserAvatar
-                          avatar={profile?.avatar}
-                          size={iconWidth - 3}
-                          type={
-                            profile?.associated?.labeler ? 'labeler' : 'user'
-                          }
-                        />
-                      </View>
-                    </View>
-                  )}
-                </NavItem>
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            <View
-              style={[
-                a.w_full,
-                a.flex_row,
-                a.align_center,
-                a.justify_between,
-                a.gap_sm,
-                {
-                  paddingTop: 14,
-                  paddingBottom: 14,
-                  paddingLeft: 14,
-                  paddingRight: 6,
-                },
-              ]}>
-              <View style={[a.flex_row, a.align_center, a.gap_md]}>
-                <Logo allowVariants={false} width={32} />
-                <View style={{paddingTop: 4}}>
-                  <Logotype width={80} fill={t.atoms.text.color} />
                 </View>
-              </View>
-
-              <View style={[a.flex_row, a.flex_wrap, a.gap_sm]}>
-                <Button
-                  onPress={showCreateAccount}
-                  label={_(msg`Create account`)}
-                  size="small"
-                  variant="solid"
-                  color="primary">
-                  <ButtonText>
-                    <Trans>Create account</Trans>
-                  </ButtonText>
-                </Button>
-                <Button
-                  onPress={showSignIn}
-                  label={_(msg`Sign in`)}
-                  size="small"
-                  variant="solid"
-                  color="secondary">
-                  <ButtonText>
-                    <Trans>Sign in</Trans>
-                  </ButtonText>
-                </Button>
+              )}
+            />
+          </View>
+        ) : (
+          <View
+            style={[
+              a.w_full,
+              a.flex_row,
+              a.align_center,
+              a.justify_between,
+              a.gap_sm,
+              {
+                minHeight: 64,
+                paddingVertical: 8,
+                paddingLeft: 16,
+                paddingRight: 12,
+              },
+            ]}>
+            <View style={[a.flex_row, a.align_center, a.gap_sm]}>
+              <Logo allowVariants={false} width={28} />
+              <View style={{paddingTop: 4}}>
+                <Logotype width={80} fill={t.atoms.text.color} />
               </View>
             </View>
-          </>
+
+            <View style={[a.flex_row, a.flex_wrap, a.gap_sm]}>
+              <Button
+                onPress={showCreateAccount}
+                label={_(msg`Create account`)}
+                size="small"
+                color="primary">
+                <ButtonText>
+                  <Trans>Create account</Trans>
+                </ButtonText>
+              </Button>
+              <Button
+                onPress={showSignIn}
+                label={_(msg`Sign in`)}
+                size="small"
+                color="secondary">
+                <ButtonText>
+                  <Trans>Sign in</Trans>
+                </ButtonText>
+              </Button>
+            </View>
+          </View>
         )}
       </Animated.View>
     </>
   )
 }
 
-const NavItem: React.FC<{
-  children: (props: {isActive: boolean}) => React.ReactNode
-  href: string
-  routeName: string
-  navItem: NavItemValue
-  hasNew?: boolean
-  notificationCount?: string
-  onLongPress?: () => void
-}> = ({
-  children,
+function NavItem({
   href,
   routeName,
   navItem,
+  label,
+  icon: Icon,
+  activeIcon: ActiveIcon,
+  renderIcon,
   hasNew,
   notificationCount,
   onLongPress,
-}) => {
+}: {
+  href: string
+  routeName: string
+  navItem: NavItemValue
+  label: string
+  icon?: React.ComponentType<SVGIconProps>
+  activeIcon?: React.ComponentType<SVGIconProps>
+  renderIcon?: (active: boolean) => React.ReactNode
+  hasNew?: boolean
+  notificationCount?: string
+  onLongPress?: () => void
+}) {
   const t = useTheme()
+  const c = m3e.colors(t)
   const {_} = useLingui()
   const ax = useAnalytics()
+  const hideLabel = useHideTabLabels()
   const {currentAccount} = useSession()
   const currentRoute = useNavigationState(state => {
     if (!state) {
@@ -304,7 +279,6 @@ const NavItem: React.FC<{
     ax.metric('nav:click', {item: navItem, surface: 'bottomBar'})
   }, [ax, navItem])
 
-  // Checks whether we're on someone else's profile
   const isOnDifferentProfile =
     currentRoute.name === 'Profile' &&
     routeName === 'Profile' &&
@@ -320,37 +294,77 @@ const NavItem: React.FC<{
             : (currentRoute.params as CommonNavigatorParams['Profile']).name)
       : isTab(currentRoute.name, routeName)
 
+  const selection = useSharedValue(isActive ? 1 : 0)
+  useEffect(() => {
+    selection.set(withSpring(isActive ? 1 : 0, m3e.motion.fastSpatial))
+  }, [isActive, selection])
+
+  const indicatorStyle = useAnimatedStyle(() => {
+    const value = selection.get()
+    return {
+      opacity: interpolate(value, [0, 0.4], [0, 1], Extrapolation.CLAMP),
+      transform: [{scaleX: interpolate(value, [0, 1], [0.3, 1])}],
+    }
+  })
+
+  const iconColor = isActive ? c.onSecondaryContainer : c.onSurfaceVariant
+  const CurrentIcon = isActive && ActiveIcon ? ActiveIcon : Icon
+
   return (
     <Link
       href={href}
-      style={[styles.ctrl, a.pb_lg]}
+      style={[
+        styles.item,
+        hideLabel && styles.itemCompact,
+        {flexDirection: 'column'},
+      ]}
       navigationAction={isOnDifferentProfile ? 'push' : 'navigate'}
       aria-role="link"
-      aria-label={routeName}
+      aria-label={label}
       accessible={true}
       onBeforePress={onBeforePress}
       onLongPress={onLongPress}>
-      {children({isActive})}
-      {notificationCount ? (
-        <View
+      <View style={styles.indicatorBox}>
+        <Animated.View
           style={[
-            styles.notificationCount,
-            styles.notificationCountWeb,
-            {backgroundColor: t.palette.primary_500},
+            styles.indicator,
+            {backgroundColor: c.secondaryContainer},
+            indicatorStyle,
           ]}
-          aria-label={_(
-            msg`${plural(notificationCount, {
-              one: '# unread item',
-              other: '# unread items',
-            })}`,
-          )}>
-          <Text style={styles.notificationCountLabel}>{notificationCount}</Text>
-        </View>
-      ) : hasNew ? (
-        <View
-          style={[styles.hasNewBadge, {backgroundColor: t.palette.primary_500}]}
         />
-      ) : null}
+        {renderIcon
+          ? renderIcon(isActive)
+          : CurrentIcon && (
+              <CurrentIcon width={ICON_SIZE} style={{color: iconColor}} />
+            )}
+        {notificationCount ? (
+          <View
+            style={[styles.largeBadge, {backgroundColor: c.error}]}
+            aria-label={_(
+              msg`${plural(notificationCount, {
+                one: '# unread item',
+                other: '# unread items',
+              })}`,
+            )}>
+            <Text style={[styles.largeBadgeLabel, {color: c.onError}]}>
+              {notificationCount}
+            </Text>
+          </View>
+        ) : hasNew ? (
+          <View style={[styles.smallBadge, {backgroundColor: c.error}]} />
+        ) : null}
+      </View>
+      {!hideLabel && (
+        <Text
+          style={[
+            styles.label,
+            isActive ? a.font_bold : a.font_medium,
+            {color: isActive ? c.onSurface : c.onSurfaceVariant},
+          ]}
+          numberOfLines={1}>
+          {label}
+        </Text>
+      )}
     </Link>
   )
 }

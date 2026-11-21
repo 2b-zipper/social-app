@@ -6,7 +6,9 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 
 import {useA11y} from '#/state/a11y'
 import {atoms as a, flatten, flattenToCSS, useTheme, web} from '#/alf'
+import * as m3e from '#/alf/m3e'
 import type * as Dialog from '#/components/Dialog'
+import {BaseRadio} from '#/components/forms/Toggle'
 import {useInteractionState} from '#/components/hooks/useInteractionState'
 import {
   Context,
@@ -178,6 +180,7 @@ export function Trigger({
 
 export function Outer({children, style, onCloseAutoFocus}: OuterProps) {
   const t = useTheme()
+  const c = m3e.colors(t)
   const {reduceMotionEnabled} = useA11y()
 
   return (
@@ -191,28 +194,20 @@ export function Outer({children, style, onCloseAutoFocus}: OuterProps) {
         className="dropdown-menu-transform-origin dropdown-menu-constrain-size">
         <View
           style={[
-            a.rounded_md,
-            a.p_sm,
+            a.p_xs,
             a.border,
-            t.name === 'light' ? t.atoms.bg : t.atoms.bg_contrast_25,
             t.atoms.shadow_md,
-            t.atoms.border_contrast_low,
             a.overflow_auto,
+            {
+              borderRadius: m3e.shape.largeIncreased,
+              backgroundColor: c.surfaceContainer,
+              borderColor: c.outlineVariant,
+            },
             !reduceMotionEnabled && a.zoom_fade_in,
             style,
           ]}>
           {children}
         </View>
-
-        {/* Disabled until we can fix positioning
-        <DropdownMenu.Arrow
-          className="DropdownMenuArrow"
-          fill={
-            (t.name === 'light' ? t.atoms.bg : t.atoms.bg_contrast_25)
-              .backgroundColor
-          }
-        />
-          */}
       </DropdownMenu.Content>
     </DropdownMenu.Portal>
   )
@@ -227,6 +222,7 @@ export function Item({
   ...rest
 }: ItemProps) {
   const t = useTheme()
+  const c = m3e.colors(t)
   const {control} = useMenuContext()
   const {
     state: hovered,
@@ -259,18 +255,19 @@ export function Item({
         style={flatten([
           a.flex_row,
           a.align_center,
-          a.gap_lg,
+          a.gap_md,
           a.py_sm,
-          a.rounded_sm,
           a.overflow_hidden,
-          {minHeight: 36, paddingHorizontal: 12},
+          {
+            minHeight: 44,
+            paddingHorizontal: 14,
+            borderRadius: m3e.shape.medium,
+          },
           web({outline: 0}),
           (hovered || focused) &&
             !rest.disabled && [
               web({outline: '0 !important'}),
-              t.name === 'light'
-                ? t.atoms.bg_contrast_25
-                : t.atoms.bg_contrast_50,
+              {backgroundColor: c.surfaceContainerHigh},
             ],
           style,
         ])}
@@ -289,15 +286,17 @@ export function Item({
 
 export function ItemText({children, style}: ItemTextProps) {
   const t = useTheme()
+  const c = m3e.colors(t)
   const {disabled, destructive} = useMenuItemContext()
   return (
     <Text
       style={[
         a.flex_1,
-        a.font_semi_bold,
-        t.atoms.text_contrast_high,
+        a.text_md,
+        a.font_medium,
+        {color: c.onSurface},
         style,
-        destructive && {color: t.palette.negative_500},
+        destructive && {color: c.error},
         disabled && t.atoms.text_contrast_low,
       ]}>
       {children}
@@ -307,6 +306,7 @@ export function ItemText({children, style}: ItemTextProps) {
 
 export function ItemIcon({icon: Comp, position = 'left', fill}: ItemIconProps) {
   const t = useTheme()
+  const c = m3e.colors(t)
   const {disabled, destructive} = useMenuItemContext()
   return (
     <View
@@ -327,8 +327,8 @@ export function ItemIcon({icon: Comp, position = 'left', fill}: ItemIconProps) {
             : disabled
               ? t.atoms.text_contrast_low.color
               : destructive
-                ? t.palette.negative_500
-                : t.atoms.text_contrast_medium.color
+                ? c.error
+                : c.onSurfaceVariant
         }
       />
     </View>
@@ -336,35 +336,15 @@ export function ItemIcon({icon: Comp, position = 'left', fill}: ItemIconProps) {
 }
 
 export function ItemRadio({selected}: {selected: boolean}) {
-  const t = useTheme()
+  const {disabled} = useMenuItemContext()
   return (
-    <View
-      style={[
-        a.justify_center,
-        a.align_center,
-        a.rounded_full,
-        t.atoms.border_contrast_high,
-        {
-          borderWidth: 1,
-          height: 20,
-          width: 20,
-        },
-      ]}>
-      {selected ? (
-        <View
-          style={[
-            a.absolute,
-            a.rounded_full,
-            {height: 14, width: 14},
-            selected
-              ? {
-                  backgroundColor: t.palette.primary_500,
-                }
-              : {},
-          ]}
-        />
-      ) : null}
-    </View>
+    <BaseRadio
+      selected={selected}
+      hovered={false}
+      focused={false}
+      disabled={disabled}
+      isInvalid={false}
+    />
   )
 }
 

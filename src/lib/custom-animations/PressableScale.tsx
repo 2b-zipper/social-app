@@ -13,9 +13,10 @@ import Animated, {
 } from 'react-native-reanimated'
 
 import * as m3e from '#/alf/m3e'
-import {IS_NATIVE, IS_WEB_TOUCH_DEVICE} from '#/env'
+import {IS_NATIVE, IS_WEB, IS_WEB_TOUCH_DEVICE} from '#/env'
 
-const DEFAULT_TARGET_SCALE = IS_NATIVE || IS_WEB_TOUCH_DEVICE ? 0.96 : 1
+const DEFAULT_TARGET_SCALE =
+  IS_NATIVE || IS_WEB || IS_WEB_TOUCH_DEVICE ? 0.96 : 1
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
 

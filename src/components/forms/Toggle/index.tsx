@@ -28,7 +28,7 @@ import * as m3e from '#/alf/m3e'
 import {useInteractionState} from '#/components/hooks/useInteractionState'
 import {CheckThick_Stroke2_Corner0_Rounded as Checkmark} from '#/components/icons/Check'
 import {Text} from '#/components/Typography'
-import {IS_NATIVE} from '#/env'
+import {IS_NATIVE, IS_WEB} from '#/env'
 
 export * from './Panel'
 
@@ -596,4 +596,4 @@ export function RadioWithLabel({
   )
 }
 
-export const Platform = IS_NATIVE ? Switch : Checkbox
+export const Platform = IS_NATIVE || IS_WEB ? Switch : Checkbox

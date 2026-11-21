@@ -1,9 +1,21 @@
-import {useCallback, useEffect, useRef} from 'react'
-import {type ScrollView, StyleSheet, View} from 'react-native'
-import {type SharedValue} from 'react-native-reanimated'
+import {useCallback, useEffect, useRef, useState} from 'react'
+import {
+  type LayoutChangeEvent,
+  type ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native'
+import Animated, {
+  Easing,
+  type SharedValue,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated'
 import {useLingui} from '@lingui/react/macro'
 
 import {atoms as a, useBreakpoints, useTheme, web} from '#/alf'
+import * as m3e from '#/alf/m3e'
 import {Text} from '#/components/Typography'
 import {PressableWithHover} from '../util/PressableWithHover'
 import {DraggableScrollView} from './DraggableScrollView'
@@ -27,9 +39,12 @@ export interface TabBarProps {
    */
   dragProgress?: SharedValue<number> // Ignored on web.
   dragState?: SharedValue<'idle' | 'dragging' | 'settling'> // Ignored on web.
-  transparent?: boolean // Ignored on web.
+  transparent?: boolean
 }
 
+const CONTENT_PADDING = 6
+const ITEM_INSET = 4
+const ITEM_VERTICAL_PADDING = 6
 // How much of the previous/next item we're showing
 // to give the user a hint there's more to scroll.
 const OFFSCREEN_ITEM_WIDTH = 20
@@ -42,18 +57,48 @@ export function TabBar({
   align = 'center',
   onSelect,
   onPressSelected,
+  transparent,
 }: TabBarProps) {
   const t = useTheme()
+  const c = m3e.colors(t)
   const {t: l} = useLingui()
   const scrollElRef = useRef<React.ComponentRef<typeof ScrollView>>(null)
   const itemRefs = useRef<Array<Element>>([])
   const {gtMobile} = useBreakpoints()
-  const styles = gtMobile ? desktopStyles : mobileStyles
+  const [itemLayouts, setItemLayouts] = useState<
+    Record<number, {x: number; width: number}>
+  >({})
+
+  const indicatorX = useSharedValue(0)
+  const indicatorW = useSharedValue(0)
+  const hasIndicator = useSharedValue(0)
+
+  const selectedLayout = itemLayouts[selectedPage]
+  useEffect(() => {
+    if (!selectedLayout) return
+    const targetX = selectedLayout.x + ITEM_INSET
+    const targetW = Math.max(0, selectedLayout.width - 2 * ITEM_INSET)
+    if (hasIndicator.get() === 0) {
+      indicatorX.set(targetX)
+      indicatorW.set(targetW)
+      hasIndicator.set(1)
+    } else {
+      const timingConfig = {
+        duration: 220,
+        easing: Easing.bezier(0.2, 0, 0, 1),
+      }
+      indicatorX.set(withTiming(targetX, timingConfig))
+      indicatorW.set(withTiming(targetW, timingConfig))
+    }
+  }, [selectedLayout, indicatorX, indicatorW, hasIndicator])
+
+  const indicatorStyle = useAnimatedStyle(() => ({
+    opacity: hasIndicator.get(),
+    width: indicatorW.get(),
+    transform: [{translateX: indicatorX.get()}],
+  }))
 
   useEffect(() => {
-    // On the web, the primary interaction is tapping.
-    // Scrolling under tap feels disorienting so only adjust the scroll offset
-    // when tapping on an item out of view--and we adjust by almost an entire page.
     const parent = scrollElRef.current?.getScrollableNode?.() as unknown as
       HTMLElement | undefined
     if (!parent) {
@@ -94,7 +139,7 @@ export function TabBar({
         behavior: 'smooth',
       })
     }
-  }, [scrollElRef, selectedPage, styles, align])
+  }, [scrollElRef, selectedPage, align])
 
   const onPressItem = useCallback(
     (index: number) => {
@@ -106,10 +151,26 @@ export function TabBar({
     [onSelect, selectedPage, onPressSelected],
   )
 
+  const handleItemLayout = useCallback(
+    (index: number, e: LayoutChangeEvent) => {
+      const {x, width} = e.nativeEvent.layout
+      setItemLayouts(prev => {
+        const curr = prev[index]
+        if (curr && curr.x === x && curr.width === width) return prev
+        return {...prev, [index]: {x, width}}
+      })
+    },
+    [],
+  )
+
   return (
     <View
       testID={testID}
-      style={[t.atoms.bg, styles.outer]}
+      style={[
+        !transparent && t.atoms.bg,
+        styles.outer,
+        gtMobile && styles.outerDesktop,
+      ]}
       accessibilityRole="tablist">
       <DraggableScrollView
         testID={`${testID}-selector`}
@@ -117,159 +178,138 @@ export function TabBar({
         showsHorizontalScrollIndicator={false}
         ref={scrollElRef}
         contentContainerStyle={styles.contentContainer}>
-        {items.map((item, i) => {
-          const selected = i === selectedPage
-          return (
-            <PressableWithHover
-              testID={`${testID}-selector-${i}`}
-              key={`${item}-${i}`}
-              ref={node => {
-                itemRefs.current[i] = node as any
-              }}
-              style={[styles.item, align === 'left' && leftAlignedStyles.item]}
-              hoverStyle={t.atoms.bg_contrast_25}
-              onPress={() => onPressItem(i)}
-              accessibilityLabel={unread?.[i] ? l`${item}, unread` : undefined}
-              accessibilityHint=""
-              accessibilityRole="tab">
-              <View style={styles.itemInner}>
-                <View
-                  style={unread?.[i] !== undefined && {paddingHorizontal: 12}}>
-                  <Text
-                    emoji
-                    testID={testID ? `${testID}-${item}` : undefined}
-                    style={[
-                      styles.itemText,
-                      selected ? t.atoms.text : t.atoms.text_contrast_medium,
-                      a.text_md,
-                      a.font_semi_bold,
-                      {lineHeight: 20},
-                    ]}>
-                    {item}
+        <View
+          style={[styles.items, align === 'center' && styles.itemsCentered]}>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.indicator,
+              {backgroundColor: c.secondaryContainer},
+              indicatorStyle,
+            ]}
+          />
+          {items.map((item, i) => {
+            const selected = i === selectedPage
+            return (
+              <View
+                key={`${item}-${i}`}
+                onLayout={e => handleItemLayout(i, e)}
+                ref={node => {
+                  itemRefs.current[i] = node as unknown as Element
+                }}
+                style={[
+                  styles.itemContainer,
+                  align === 'center' && styles.itemContainerCentered,
+                ]}>
+                <PressableWithHover
+                  testID={`${testID}-selector-${i}`}
+                  style={[
+                    styles.item,
+                    align === 'center' && styles.itemCentered,
+                  ]}
+                  hoverStyle={a.bg_transparent}
+                  onPress={() => onPressItem(i)}
+                  accessibilityLabel={
+                    unread?.[i] ? l`${item}, unread` : undefined
+                  }
+                  accessibilityHint=""
+                  accessibilityRole="tab">
+                  <View style={styles.itemInner}>
                     <View
                       style={[
-                        styles.itemIndicator,
-                        selected && {
-                          backgroundColor: t.palette.primary_500,
-                        },
-                      ]}
-                    />
-                  </Text>
-                  {unread?.[i] && (
-                    <View
-                      aria-hidden
-                      testID={testID ? `${testID}-unread-${i}` : undefined}
-                      style={{
-                        position: 'absolute',
-                        top: 2,
-                        right: 0,
-                        width: 8,
-                        height: 8,
-                        borderRadius: 4,
-                        backgroundColor: t.palette.primary_500,
-                      }}
-                    />
-                  )}
-                </View>
+                        {opacity: selected ? 1 : 0.7},
+                        unread?.[i] !== undefined && {paddingHorizontal: 12},
+                      ]}>
+                      <Text
+                        emoji
+                        testID={testID ? `${testID}-${item}` : undefined}
+                        style={[
+                          styles.itemText,
+                          t.atoms.text,
+                          a.text_md,
+                          a.font_semi_bold,
+                        ]}>
+                        {item}
+                      </Text>
+                      {unread?.[i] && (
+                        <View
+                          aria-hidden
+                          testID={testID ? `${testID}-unread-${i}` : undefined}
+                          style={{
+                            position: 'absolute',
+                            top: 2,
+                            right: 0,
+                            width: 8,
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: t.palette.primary_500,
+                          }}
+                        />
+                      )}
+                    </View>
+                  </View>
+                </PressableWithHover>
               </View>
-            </PressableWithHover>
-          )
-        })}
+            )
+          })}
+        </View>
       </DraggableScrollView>
-      <View style={[t.atoms.border_contrast_low, styles.outerBottomBorder]} />
     </View>
   )
 }
 
-const desktopStyles = StyleSheet.create({
+const styles = StyleSheet.create({
   outer: {
     flexDirection: 'row',
+  },
+  outerDesktop: {
     width: 600,
   },
   contentContainer: {
     flexGrow: 1,
-    paddingHorizontal: 0,
     backgroundColor: 'transparent',
+    paddingHorizontal: CONTENT_PADDING,
   },
-  item: {
-    flexGrow: 1,
-    alignItems: 'stretch',
-    paddingTop: 14,
-    paddingHorizontal: 14,
-    justifyContent: 'center',
-  },
-  itemInner: {
-    alignItems: 'center',
-    ...web({overflowX: 'hidden'}),
-  },
-  itemText: {
-    textAlign: 'center',
-    paddingBottom: 10 + 3,
-  },
-  itemIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    height: 3,
-    left: '50%',
-    transform: 'translateX(-50%)',
-    minWidth: 45,
-    width: '100%',
-  },
-  outerBottomBorder: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: '100%',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-})
-
-const mobileStyles = StyleSheet.create({
-  outer: {
+  items: {
     flexDirection: 'row',
+    position: 'relative',
   },
-  contentContainer: {
+  itemsCentered: {
     flexGrow: 1,
-    backgroundColor: 'transparent',
-    paddingHorizontal: 6,
+  },
+  itemContainer: {
+    flexShrink: 0,
+  },
+  itemContainerCentered: {
+    flexGrow: 1,
+  },
+  indicator: {
+    position: 'absolute',
+    top: ITEM_VERTICAL_PADDING,
+    bottom: ITEM_VERTICAL_PADDING,
+    left: 0,
+    borderRadius: 999,
   },
   item: {
-    flexGrow: 1,
-    alignItems: 'stretch',
-    paddingTop: 10,
-    paddingHorizontal: 10,
+    paddingVertical: ITEM_VERTICAL_PADDING,
+    paddingHorizontal: ITEM_INSET,
     justifyContent: 'center',
   },
-  itemInner: {
+  itemCentered: {
     flexGrow: 1,
+  },
+  itemInner: {
+    position: 'relative',
     alignItems: 'center',
+    justifyContent: 'center',
+    flexGrow: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
     ...web({overflowX: 'hidden'}),
   },
   itemText: {
+    lineHeight: 20,
     textAlign: 'center',
-    paddingBottom: 10 + 3,
-  },
-  itemIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    height: 3,
-    left: '50%',
-    transform: 'translateX(-50%)',
-    minWidth: 45,
-    width: '100%',
-  },
-  outerBottomBorder: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: '100%',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-})
-
-const leftAlignedStyles = StyleSheet.create({
-  item: {
-    flexGrow: 0,
-    flexShrink: 0,
   },
 })

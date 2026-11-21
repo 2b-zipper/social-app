@@ -2,7 +2,6 @@ import {
   forwardRef,
   isValidElement,
   memo,
-  startTransition,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -256,7 +255,7 @@ function ListImpl<ItemT>(
     ref,
     () => ({
       scrollToTop() {
-        getScrollableNode()?.scrollTo({top: 0})
+        getScrollableNode()?.scrollTo({top: 0, behavior: 'smooth'})
       },
 
       scrollToOffset({
@@ -266,10 +265,12 @@ function ListImpl<ItemT>(
         animated?: boolean | null
         offset: number
       }) {
+        const shouldAnimate =
+          Boolean(animated) || (!disableFullWindowScroll && offset <= 0)
         getScrollableNode()?.scrollTo({
           left: 0,
           top: offset,
-          behavior: animated ? 'smooth' : 'instant',
+          behavior: shouldAnimate ? 'smooth' : 'instant',
         })
       },
 
@@ -308,15 +309,24 @@ function ListImpl<ItemT>(
     itemCount: data?.length ?? 0,
     rowNodesRef,
   })
+  // --- onScrolledDownChange ---
+  const isScrolledDown = useRef(false)
+
   const handleScroll = useNonReactiveCallback(() => {
     if (!isInsideVisibleTree) return
 
     const element = getScrollableNode()
+    const scrollY = Math.max(0, element?.scrollY ?? 0)
+    const didScrollDown = scrollY > Math.max(headerOffset ?? 0, 60)
+    if (isScrolledDown.current !== didScrollDown) {
+      isScrolledDown.current = didScrollDown
+      onScrolledDownChange?.(didScrollDown)
+    }
     contextScrollHandlers.onScroll?.(
       {
         contentOffset: {
           x: Math.max(0, element?.scrollX ?? 0),
-          y: Math.max(0, element?.scrollY ?? 0),
+          y: scrollY,
         },
         layoutMeasurement: {
           width: element?.clientWidth,
@@ -346,6 +356,12 @@ function ListImpl<ItemT>(
     }
 
     const element = getScrollableNode()
+    const scrollY = Math.max(0, element?.scrollY ?? 0)
+    const didScrollDown = scrollY > Math.max(headerOffset ?? 0, 60)
+    if (isScrolledDown.current !== didScrollDown) {
+      isScrolledDown.current = didScrollDown
+      onScrolledDownChange?.(didScrollDown)
+    }
 
     element?.addEventListener('scroll', handleScroll)
     return () => {
@@ -356,19 +372,9 @@ function ListImpl<ItemT>(
     handleScroll,
     disableFullWindowScroll,
     getScrollableNode,
+    headerOffset,
+    onScrolledDownChange,
   ])
-
-  // --- onScrolledDownChange ---
-  const isScrolledDown = useRef(false)
-  function handleAboveTheFoldVisibleChange(isAboveTheFold: boolean) {
-    const didScrollDown = !isAboveTheFold
-    if (isScrolledDown.current !== didScrollDown) {
-      isScrolledDown.current = didScrollDown
-      startTransition(() => {
-        onScrolledDownChange?.(didScrollDown)
-      })
-    }
-  }
 
   // --- onStartReached ---
   const onHeadVisibilityChange = useNonReactiveCallback(
@@ -425,11 +431,6 @@ function ListImpl<ItemT>(
               ? styles.minHeightViewport
               : null,
           ]}>
-          <Visibility
-            root={disableFullWindowScroll ? nativeRef : null}
-            onVisibleChange={handleAboveTheFoldVisibleChange}
-            style={[styles.aboveTheFoldDetector, {height: headerOffset}]}
-          />
           {onStartReached && !isEmpty && (
             <EdgeVisibility
               root={disableFullWindowScroll ? nativeRef : null}
@@ -803,13 +804,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-  },
-  aboveTheFoldDetector: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    // Bottom is dynamic.
   },
   visibilityDetector: {
     pointerEvents: 'none',

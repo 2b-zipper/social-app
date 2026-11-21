@@ -1,4 +1,11 @@
-import {createContext, useCallback, useContext, useMemo, useState} from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react'
 import {type Theme, type ThemeName, utils as baseUtils} from '@bsky.app/alf'
 
 import {
@@ -15,6 +22,7 @@ import {
   lighten,
   rgbToHex,
 } from '#/alf/util/colorGeneration'
+import {IS_WEB} from '#/env'
 import {type Device} from '#/storage'
 
 export {type TextStyleProp, type Theme, type ViewStyleProp} from '@bsky.app/alf'
@@ -129,6 +137,29 @@ export function ThemeProvider({
     fontScaleMultiplier,
     themesOverride,
   ])
+
+  useLayoutEffect(() => {
+    if (IS_WEB && typeof window !== 'undefined') {
+      const activeTheme = value.theme
+      const bg = activeTheme.atoms.bg.backgroundColor
+      const bgLight = activeTheme.palette.contrast_100
+      const text = activeTheme.atoms.text.color
+      const html = window.document.documentElement
+      html.style.backgroundColor = bg
+      html.style.setProperty('--background', bg)
+      html.style.setProperty('--backgroundLight', bgLight)
+      html.style.setProperty('--text', text)
+      if (window.document.body) {
+        window.document.body.style.backgroundColor = bg
+      }
+      const root = window.document.getElementById('root')
+      if (root) {
+        root.style.backgroundColor = bg
+      }
+      const meta = window.document.querySelector('meta[name="theme-color"]')
+      meta?.setAttribute('content', bg)
+    }
+  }, [value.theme])
 
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
