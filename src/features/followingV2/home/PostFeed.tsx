@@ -378,6 +378,8 @@ let PostFeed = ({
   const lastFetchedAt = data?.pages[0].fetchedAt
   const moderationOpts = useModerationOpts()
   const stagedPageRef = useRef<FeedPageUnselected | undefined>(undefined)
+  const pollGenerationRef = useRef(0)
+  const isPollingRef = useRef(false)
   const isEmpty = useMemo(
     () => !isFetching && !data?.pages?.some(page => page.slices.length),
     [isFetching, data],
@@ -437,11 +439,23 @@ let PostFeed = ({
     })
   })
   const refreshToTop = async () => {
+    pollGenerationRef.current += 1
+    lastFetchRef.current = Date.now()
     const staged = stagedPageRef.current
     stagedPageRef.current = undefined
-    const page = await refresh(staged)
-    if (staged && feedUriOrActorDid !== DISCOVER_FEED_URI) {
-      void queryClient.invalidateQueries({queryKey: RQKEY(feed, feedParams)})
+    onHasNew?.(false)
+    const isDiscover = feedUriOrActorDid === DISCOVER_FEED_URI
+    const isChronological = feed === 'following' || feedType === 'list'
+    const isStagedFresh =
+      staged && (isDiscover || Date.now() - staged.fetchedAt < 60_000)
+    const page = await refresh(isStagedFresh ? staged : undefined)
+    lastFetchRef.current = Date.now()
+    if (isStagedFresh && isChronological) {
+      await queryClient.invalidateQueries({
+        queryKey: RQKEY(feed, feedParams),
+        exact: true,
+      })
+      lastFetchRef.current = Date.now()
     }
     if (!page || !isAnchored) {
       return
@@ -468,6 +482,7 @@ let PostFeed = ({
       !data?.pages[0] ||
       isFetching ||
       isRefreshing ||
+      isPollingRef.current ||
       // Anchored Following checks with useNewPostsCheck instead, below.
       isAnchored ||
       !onHasNew ||
@@ -476,8 +491,13 @@ let PostFeed = ({
     ) {
       return
     }
+    if (Date.now() - lastFetchRef.current < CHECK_LATEST_AFTER && !isEmpty) {
+      return
+    }
 
     const isDiscover = feedUriOrActorDid === DISCOVER_FEED_URI
+    const pollGen = pollGenerationRef.current
+    isPollingRef.current = true
 
     try {
       const res = await pollLatestAuthors(
@@ -487,6 +507,9 @@ let PostFeed = ({
         moderationOpts,
         ignoreFilterFor,
       )
+      if (pollGen !== pollGenerationRef.current) {
+        return
+      }
       if (res.hasNew) {
         if (res.polledPage) {
           stagedPageRef.current = res.polledPage
@@ -501,6 +524,8 @@ let PostFeed = ({
       if (!isNetworkError(e)) {
         logger.warn('Poll latest failed', {feed, message: String(e)})
       }
+    } finally {
+      isPollingRef.current = false
     }
   })
 

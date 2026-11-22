@@ -190,10 +190,7 @@ export function FeedPage({
             feed={feed}
             feedParams={feedParams}
             pollInterval={POLL_FREQ}
-            disablePoll={
-              !isPageFocused ||
-              (hasNew && (isDiscoverFeed || newAuthors.length >= 3))
-            }
+            disablePoll={!isPageFocused || (hasNew && isDiscoverFeed)}
             scrollElRef={scrollElRef}
             onScrolledDownChange={setIsScrolledDown}
             onHasNew={handleHasNew}

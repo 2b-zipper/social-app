@@ -312,6 +312,8 @@ let PostFeed = ({
   const lastFetchedAt = data?.pages[0].fetchedAt
   const moderationOpts = useModerationOpts()
   const stagedPageRef = useRef<FeedPageUnselected | undefined>(undefined)
+  const pollGenerationRef = useRef(0)
+  const isPollingRef = useRef(false)
   const isEmpty = useMemo(
     () => !isFetching && !data?.pages?.some(page => page.slices.length),
     [isFetching, data],
@@ -324,11 +326,23 @@ let PostFeed = ({
   }, [lastFetchedAt])
 
   const checkForNew = useNonReactiveCallback(async () => {
-    if (!data?.pages[0] || isFetching || !onHasNew || !enabled || disablePoll) {
+    if (
+      !data?.pages[0] ||
+      isFetching ||
+      isPollingRef.current ||
+      !onHasNew ||
+      !enabled ||
+      disablePoll
+    ) {
+      return
+    }
+    if (Date.now() - lastFetchRef.current < CHECK_LATEST_AFTER && !isEmpty) {
       return
     }
 
     const isDiscover = feedUriOrActorDid === DISCOVER_FEED_URI
+    const pollGen = pollGenerationRef.current
+    isPollingRef.current = true
 
     try {
       const res = await pollLatestAuthors(
@@ -337,6 +351,9 @@ let PostFeed = ({
         moderationOpts,
         ignoreFilterFor,
       )
+      if (pollGen !== pollGenerationRef.current) {
+        return
+      }
       if (res.hasNew) {
         if (res.polledPage) {
           stagedPageRef.current = res.polledPage
@@ -351,6 +368,8 @@ let PostFeed = ({
       if (!isNetworkError(e)) {
         logger.warn('Poll latest failed', {feed, message: String(e)})
       }
+    } finally {
+      isPollingRef.current = false
     }
   })
 
@@ -756,6 +775,8 @@ let PostFeed = ({
   const refreshFeed = async () => {
     if (!enabled) return
 
+    pollGenerationRef.current += 1
+    lastFetchRef.current = Date.now()
     ax.metric('feed:refresh', {
       feedType: feedType,
       feedUrl: feed,
@@ -765,20 +786,28 @@ let PostFeed = ({
       const queryKey = RQKEY(feed, feedParams)
       const staged = stagedPageRef.current
       stagedPageRef.current = undefined
-      if (staged) {
+      if (onHasNew) {
+        onHasNew(false)
+      }
+      const isDiscover = feedUriOrActorDid === DISCOVER_FEED_URI
+      const isChronological = feed === 'following' || feedType === 'list'
+      const isStagedFresh =
+        staged && (isDiscover || Date.now() - staged.fetchedAt < 60_000)
+      if (isStagedFresh) {
+        const now = Date.now()
+        lastFetchRef.current = now
         await queryClient.cancelQueries({queryKey})
         queryClient.setQueryData<InfiniteData<FeedPageUnselected>>(queryKey, {
-          pages: [{...staged, fetchedAt: Date.now()}],
+          pages: [{...staged, fetchedAt: now}],
           pageParams: [undefined],
         })
-        if (feedUriOrActorDid !== DISCOVER_FEED_URI) {
-          void queryClient.invalidateQueries({queryKey})
+        if (isChronological) {
+          await queryClient.invalidateQueries({queryKey, exact: true})
+          lastFetchRef.current = Date.now()
         }
       } else {
         await truncateAndInvalidate(queryClient, queryKey)
-      }
-      if (onHasNew) {
-        onHasNew(false)
+        lastFetchRef.current = Date.now()
       }
     } catch (err) {
       logger.error('Failed to refresh posts feed', {message: err})
