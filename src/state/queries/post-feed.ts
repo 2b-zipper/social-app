@@ -40,6 +40,7 @@ import {DEFAULT_LOGGED_OUT_PREFERENCES} from '#/state/queries/preferences/const'
 import {useAppviewClient, useSession} from '#/state/session'
 import * as userActionHistory from '#/state/userActionHistory'
 import {KnownError} from '#/view/com/posts/PostFeedErrorMessage'
+import {IS_WEB} from '#/env'
 import {app} from '#/lexicons'
 import * as bsky from '#/types/bsky'
 import {useFeedTuners} from '../preferences/feed-tuners'
@@ -385,25 +386,73 @@ export function usePostFeedQuery(
 }
 
 export async function pollLatest(page: FeedPage | undefined) {
+  const res = await pollLatestAuthors(page)
+  return res.hasNew
+}
+
+export async function pollLatestAuthors(
+  page: FeedPage | undefined,
+  forceHasNew = false,
+): Promise<{hasNew: boolean; authors: {did: string; avatar?: string}[]}> {
   if (!page) {
-    return false
+    return {hasNew: false, authors: []}
   }
-  if (AppState.currentState !== 'active') {
-    return
+  if (
+    IS_WEB
+      ? typeof document !== 'undefined' && document.visibilityState === 'hidden'
+      : AppState.currentState !== 'active'
+  ) {
+    return {hasNew: false, authors: []}
   }
 
   logger.debug('usePostFeedQuery: pollLatest')
-  const post = await page.api.peekLatest()
-  if (post) {
-    const slices = page.tuner.tune([post], {
-      dryRun: true,
-    })
-    if (slices[0]) {
-      return true
+  const res = await page.api.fetch({cursor: undefined, limit: 15})
+  if (res.feed.length) {
+    const unseenFeed = res.feed.filter(
+      item => !page.tuner.seenUris.has(item.post.uri),
+    )
+    const slices = unseenFeed.length
+      ? page.tuner.tune(unseenFeed, {dryRun: true})
+      : []
+    if (slices.length > 0 || forceHasNew) {
+      const authors: {did: string; avatar?: string}[] = []
+      const addAuthor = (author: app.bsky.actor.defs.ProfileViewBasic) => {
+        if (
+          author.avatar &&
+          authors.length < 3 &&
+          !authors.some(a => a.did === author.did)
+        ) {
+          authors.push({did: author.did, avatar: author.avatar})
+        }
+      }
+      for (const slice of slices) {
+        addAuthor(slice._feedPost.post.author)
+      }
+      if (authors.length < 3) {
+        for (const item of unseenFeed.length ? unseenFeed : res.feed) {
+          addAuthor(item.post.author)
+        }
+      }
+      return {hasNew: true, authors}
     }
   }
 
-  return false
+  if (forceHasNew) {
+    const fallbackAuthors: {did: string; avatar?: string}[] = []
+    for (const slice of page.slices) {
+      const author = slice.items[0]?.post.author
+      if (
+        author?.avatar &&
+        fallbackAuthors.length < 3 &&
+        !fallbackAuthors.some(a => a.did === author.did)
+      ) {
+        fallbackAuthors.push({did: author.did, avatar: author.avatar})
+      }
+    }
+    return {hasNew: true, authors: fallbackAuthors}
+  }
+
+  return {hasNew: false, authors: []}
 }
 
 function createApi({

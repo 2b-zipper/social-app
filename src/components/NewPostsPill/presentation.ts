@@ -10,7 +10,7 @@ export function newPostsPillLeadsUp(variant: NewPostsPillVariant): boolean {
 /** A facepile needs a known group of posts and at least one usable avatar. */
 export function newPostsPillPresentation({
   variant,
-  count,
+  count: _count,
   faceCount,
 }: {
   variant: NewPostsPillVariant
@@ -25,6 +25,6 @@ export function newPostsPillPresentation({
     case 'newPostsToFetch':
       return 'generic'
     case 'newPosts':
-      return count >= 4 && faceCount > 0 ? 'facepile' : 'generic'
+      return faceCount > 0 ? 'facepile' : 'generic'
   }
 }

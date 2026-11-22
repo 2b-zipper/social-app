@@ -1,3 +1,4 @@
+import {View} from 'react-native'
 import Animated, {useAnimatedStyle} from 'react-native-reanimated'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {plural} from '@lingui/core/macro'
@@ -5,11 +6,12 @@ import {plural} from '@lingui/core/macro'
 import {HITSLOP_20} from '#/lib/constants'
 import {useShellLayout} from '#/state/shell/shell-layout'
 import {useHomeHeaderMode} from '#/view/com/util/MainScrollProvider'
-import {atoms as a} from '#/alf'
+import {atoms as a, useBreakpoints} from '#/alf'
 import {NewPostsPill, type NewPostsPillAuthor} from '#/components/NewPostsPill'
+import {IS_NATIVE, IS_WEB} from '#/env'
 
 /** Space between the bottom edge of the Home header and the pill. */
-const HEADER_GAP = 16
+const HEADER_GAP = 12
 
 /*
  * A full-width strip whose top edge sits on the header's bottom edge. It
@@ -19,7 +21,7 @@ const HEADER_GAP = 16
  * hit slop inside the clip. The strip itself takes no touches.
  */
 const strip = [
-  a.absolute,
+  IS_WEB ? a.fixed : a.absolute,
   a.overflow_hidden,
   a.z_10,
   {
@@ -31,15 +33,6 @@ const strip = [
   },
 ]
 
-/**
- * The new posts pill for the posts anchored Following puts on top on Home (see
- * `usePrependPill`), beneath the Home header. It follows the header as it
- * collapses, as `useHomeHeaderTransform` moves it, and comes to rest under the
- * part of the header that stays on screen rather than hiding with it. Render
- * it in a Home feed page, after its list.
- *
- * @platform ios, android
- */
 export function PrependPill({
   visible,
   count,
@@ -54,15 +47,56 @@ export function PrependPill({
   const mode = useHomeHeaderMode()
   const {headerHeight} = useShellLayout()
   const {top: topInset} = useSafeAreaInsets()
-  // As `useHomeHeaderTransform` has it.
-  const pinnedHeight = topInset
-  // Translate only: a transform moves it without a layout pass every frame.
+  const {gtMobile} = useBreakpoints()
+  const pinnedHeight = IS_NATIVE ? topInset : 0
   const follow = useAnimatedStyle(() => {
     const height = headerHeight.get()
     return {
       transform: [{translateY: height + mode.get() * (pinnedHeight - height)}],
     }
   })
+
+  if (IS_WEB && gtMobile) {
+    return (
+      <View
+        pointerEvents="box-none"
+        style={[
+          a.sticky,
+          a.z_20,
+          {
+            top: 46,
+            height: 0,
+            overflow: 'visible',
+          },
+        ]}>
+        <View
+          pointerEvents="box-none"
+          style={[
+            a.absolute,
+            a.overflow_hidden,
+            {
+              top: 0,
+              left: 0,
+              right: 0,
+              paddingTop: HEADER_GAP,
+              paddingBottom: HITSLOP_20.bottom,
+            },
+          ]}>
+          <NewPostsPill
+            testID="followingPrependPill"
+            visible={visible}
+            count={count}
+            authors={authors}
+            label={plural(count, {
+              one: 'Show # new post',
+              other: 'Show # new posts',
+            })}
+            onPress={onPress}
+          />
+        </View>
+      </View>
+    )
+  }
 
   return (
     <Animated.View pointerEvents="box-none" style={[strip, follow]}>

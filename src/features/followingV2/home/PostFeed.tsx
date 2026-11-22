@@ -62,6 +62,7 @@ import {
 } from '#/components/feeds/PostFeedVideoGridRow'
 import {FeedTrendingTopicsInterstitial} from '#/components/interstitials/FeedTrendingTopics'
 import {TrendingVideos as TrendingVideosInterstitial} from '#/components/interstitials/TrendingVideos'
+import {type NewPostsPillAuthor} from '#/components/NewPostsPill'
 import {isStandardSiteEmbed} from '#/components/Post/Embed/StandardSiteEmbed/utils'
 import {PostFeedSkeleton} from '#/components/PostFeedSkeleton'
 import {RichText} from '#/components/RichText'
@@ -88,6 +89,7 @@ import {
   findGaps,
   hasUnseenPosts,
   pollLatest,
+  pollLatestAuthors,
   RQKEY,
   usePostFeedFetcher,
   usePostFeedGapFill,
@@ -288,7 +290,7 @@ let PostFeed = ({
   pollInterval?: number
   disablePoll?: boolean
   scrollElRef?: ListRef
-  onHasNew?: (v: boolean) => void
+  onHasNew?: (v: boolean, authors?: NewPostsPillAuthor[]) => void
   onScrolledDownChange?: (isScrolledDown: boolean) => void
   renderEmptyState: () => React.ReactElement
   renderEndOfFeed?: () => React.ReactElement
@@ -467,21 +469,25 @@ let PostFeed = ({
       return
     }
 
-    // Discover always has fresh content
-    if (feedUriOrActorDid === DISCOVER_FEED_URI) {
-      return onHasNew(true)
-    }
+    const isDiscover = feedUriOrActorDid === DISCOVER_FEED_URI
 
     try {
-      if (await pollLatest(data.pages[0], createFeedApi())) {
+      const res = await pollLatestAuthors(
+        data.pages[0],
+        createFeedApi(),
+        isDiscover,
+      )
+      if (res.hasNew) {
         if (isEmpty) {
           void refreshToTop()
         } else {
-          onHasNew(true)
+          onHasNew(true, res.authors)
         }
       }
     } catch (e) {
-      if (!isNetworkError(e)) {
+      if (isDiscover) {
+        onHasNew(true, [])
+      } else if (!isNetworkError(e)) {
         logger.warn('Poll latest failed', {feed, message: String(e)})
       }
     }

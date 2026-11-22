@@ -40,6 +40,7 @@ import {useAutoPagination} from '#/state/queries/util'
 import {useAppviewClient, useSession} from '#/state/session'
 import * as userActionHistory from '#/state/userActionHistory'
 import {KnownError} from '#/view/com/posts/PostFeedErrorMessage'
+import {IS_WEB} from '#/env'
 import {CustomFeedAPI} from '#/features/followingV2/home/api/custom'
 import {FollowingFeedAPI} from '#/features/followingV2/home/api/following'
 import {HomeFeedAPI} from '#/features/followingV2/home/api/home'
@@ -802,7 +803,7 @@ export function usePostFeedPrepend(
   }
 
   const run = (trigger: PrependTrigger) => {
-    const isOffered = trigger === 'restore' || trigger === 'return'
+    const isOffered = Boolean(trigger)
     if (pending.current) {
       isOffering.current ||= isOffered
       return pending.current
@@ -843,9 +844,7 @@ export function usePostFeedPrepend(
     const before = getData()
     const top = before?.pages[0]
     if (before && fullStaged(before)) {
-      if (trigger === 'return') {
-        offerStaged()
-      }
+      offerStaged()
       return Promise.resolve(undefined)
     }
     if (!before || !top || !targetOf(before)) {
@@ -859,7 +858,7 @@ export function usePostFeedPrepend(
           page = await run(trigger)
         }
       } finally {
-        if (trigger === 'return' && !page) {
+        if (!page) {
           offerStaged()
         }
       }
@@ -1151,16 +1150,78 @@ async function commit(
  * be a fresh one from {@link usePostFeedFetcher}.
  */
 export async function pollLatest(page: FeedPage | undefined, api: FeedAPI) {
+  const res = await pollLatestAuthors(page, api)
+  return res.hasNew
+}
+
+export async function pollLatestAuthors(
+  page: FeedPage | undefined,
+  api: FeedAPI,
+  forceHasNew = false,
+): Promise<{hasNew: boolean; authors: {did: string; avatar?: string}[]}> {
   if (!page) {
-    return false
+    return {hasNew: false, authors: []}
   }
-  if (AppState.currentState !== 'active') {
-    return
+  if (
+    IS_WEB
+      ? typeof document !== 'undefined' && document.visibilityState === 'hidden'
+      : AppState.currentState !== 'active'
+  ) {
+    return {hasNew: false, authors: []}
   }
 
   logger.debug('usePostFeedQuery: pollLatest')
-  const post = await api.peekLatest({source: page.source})
-  return post ? hasUnseenPosts(page, [post]) : false
+  const res = await api.fetch({
+    cursor: undefined,
+    limit: 15,
+    source: page.source,
+  })
+  if (res.feed.length) {
+    const unseenFeed = res.feed.filter(
+      item => !page.tuner.seenUris.has(item.post.uri),
+    )
+    const slices = unseenFeed.length
+      ? page.tuner.tune(unseenFeed, {dryRun: true})
+      : []
+    if (slices.length > 0 || forceHasNew) {
+      const authors: {did: string; avatar?: string}[] = []
+      const addAuthor = (author: app.bsky.actor.defs.ProfileViewBasic) => {
+        if (
+          author.avatar &&
+          authors.length < 3 &&
+          !authors.some(a => a.did === author.did)
+        ) {
+          authors.push({did: author.did, avatar: author.avatar})
+        }
+      }
+      for (const slice of slices) {
+        addAuthor(slice._feedPost.post.author)
+      }
+      if (authors.length < 3) {
+        for (const item of unseenFeed.length ? unseenFeed : res.feed) {
+          addAuthor(item.post.author)
+        }
+      }
+      return {hasNew: true, authors}
+    }
+  }
+
+  if (forceHasNew) {
+    const fallbackAuthors: {did: string; avatar?: string}[] = []
+    for (const slice of page.slices) {
+      const author = slice.items[0]?.post.author
+      if (
+        author?.avatar &&
+        fallbackAuthors.length < 3 &&
+        !fallbackAuthors.some(a => a.did === author.did)
+      ) {
+        fallbackAuthors.push({did: author.did, avatar: author.avatar})
+      }
+    }
+    return {hasNew: true, authors: fallbackAuthors}
+  }
+
+  return {hasNew: false, authors: []}
 }
 
 /**

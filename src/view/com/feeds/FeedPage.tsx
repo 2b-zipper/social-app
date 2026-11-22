@@ -35,15 +35,13 @@ import {MainScrollProvider} from '#/view/com/util/MainScrollProvider'
 import {useBreakpoints, useTheme} from '#/alf'
 import {useHeaderOffset} from '#/components/hooks/useHeaderOffset'
 import {EditBig_Stroke2_Corner2_Rounded as EditBigIcon} from '#/components/icons/EditBig'
+import {type NewPostsPillAuthor} from '#/components/NewPostsPill'
 import {useAnalytics} from '#/analytics'
-import {IS_NATIVE} from '#/env'
-import {
-  isFollowingV2Eligible,
-  isFollowingV2HomeDotEnabled,
-} from '#/features/followingV2/eligibility'
+import {IS_NATIVE, IS_WEB} from '#/env'
+import {PrependPill} from '#/features/followingV2/home/PrependPill'
 import {app} from '#/lexicons'
 
-const POLL_FREQ = 60e3 // 60sec
+const POLL_FREQ = 30e3 // 30sec
 
 export function FeedPage({
   testID,
@@ -77,6 +75,7 @@ export function FeedPage({
   const feedFeedback = useFeedFeedback(feedInfo, hasSession)
   const scrollElRef = useRef<ListMethods>(null)
   const [hasNew, setHasNew] = useState(false)
+  const [newAuthors, setNewAuthors] = useState<NewPostsPillAuthor[]>([])
   const setHomeBadge = useSetHomeBadge()
   const isVideoFeed = useMemo(() => {
     const isBskyVideoFeed = VIDEO_FEED_URIS.includes(feedInfo.uri)
@@ -87,6 +86,14 @@ export function FeedPage({
   }, [feedInfo])
   const t = useTheme()
   const {gtMobile} = useBreakpoints()
+
+  const handleHasNew = useCallback(
+    (v: boolean, authors: NewPostsPillAuthor[] = []) => {
+      setHasNew(v)
+      setNewAuthors(v ? authors : [])
+    },
+    [],
+  )
 
   useEffect(() => {
     if (isPageFocused) {
@@ -109,6 +116,7 @@ export function FeedPage({
       scrollToTop()
       truncateAndInvalidate(queryClient, FEED_RQKEY(feed))
       setHasNew(false)
+      setNewAuthors([])
       ax.metric('feed:refresh', {
         feedType: feed.split('|')[0],
         feedUrl: feed,
@@ -133,6 +141,7 @@ export function FeedPage({
     scrollToTop()
     truncateAndInvalidate(queryClient, FEED_RQKEY(feed))
     setHasNew(false)
+    setNewAuthors([])
     ax.metric('feed:refresh', {
       feedType: feed.split('|')[0],
       feedUrl: feed,
@@ -147,6 +156,14 @@ export function FeedPage({
       testID={testID}
       // @ts-expect-error web only -sfn
       dataSet={{nosnippet: isDiscoverFeed ? '' : undefined}}>
+      {IS_WEB && gtMobile && (
+        <PrependPill
+          visible={hasNew}
+          count={newAuthors.length}
+          authors={newAuthors}
+          onPress={onPressLoadLatest}
+        />
+      )}
       <MainScrollProvider>
         <FeedFeedbackProvider value={feedFeedback}>
           <PostFeed
@@ -155,10 +172,13 @@ export function FeedPage({
             feed={feed}
             feedParams={feedParams}
             pollInterval={POLL_FREQ}
-            disablePoll={hasNew || !isPageFocused}
+            disablePoll={
+              !isPageFocused ||
+              (hasNew && (isDiscoverFeed || newAuthors.length >= 3))
+            }
             scrollElRef={scrollElRef}
             onScrolledDownChange={setIsScrolledDown}
-            onHasNew={setHasNew}
+            onHasNew={handleHasNew}
             renderEmptyState={renderEmptyState}
             renderEndOfFeed={renderEndOfFeed}
             headerOffset={headerOffset}
@@ -167,20 +187,21 @@ export function FeedPage({
           />
         </FeedFeedbackProvider>
       </MainScrollProvider>
-      {/*
-       * With Following v2, native replaces Load Latest with the new posts pill
-       * and mobile web relies on the Home tab dot. Tablet and desktop web have
-       * no pill, so they keep the button.
-       */}
-      {(isScrolledDown || hasNew) &&
-        !isFollowingV2Eligible(ax) &&
-        !(isFollowingV2HomeDotEnabled(ax) && !gtMobile) && (
-          <LoadLatestBtn
-            onPress={onPressLoadLatest}
-            label={_(msg`Load new posts`)}
-            showIndicator={hasNew}
-          />
-        )}
+      {(!IS_WEB || !gtMobile) && (
+        <PrependPill
+          visible={hasNew}
+          count={newAuthors.length}
+          authors={newAuthors}
+          onPress={onPressLoadLatest}
+        />
+      )}
+      {isScrolledDown && (
+        <LoadLatestBtn
+          onPress={onPressLoadLatest}
+          label={_(msg`Load new posts`)}
+          showIndicator={false}
+        />
+      )}
 
       {hasSession && (
         <FAB

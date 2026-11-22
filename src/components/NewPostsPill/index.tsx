@@ -1,4 +1,4 @@
-import {useEffect, useEffectEvent, useId, useState} from 'react'
+import {useEffect, useEffectEvent, useState} from 'react'
 import {AppState, type StyleProp, View, type ViewStyle} from 'react-native'
 import Animated, {
   Easing,
@@ -7,7 +7,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated'
-import Svg, {Circle, Defs, G, Image, Mask} from 'react-native-svg'
+import {Image as ExpoImage} from 'expo-image'
 import {plural} from '@lingui/core/macro'
 import {Trans, useLingui} from '@lingui/react/macro'
 
@@ -230,7 +230,12 @@ export function NewPostsPill({
                 />
               )}
               {presentation === 'facepile' ? (
-                <Facepile authors={faces} />
+                <>
+                  <Facepile authors={faces} />
+                  <PillLabelText>
+                    {content.text ?? <Trans>New posts</Trans>}
+                  </PillLabelText>
+                </>
               ) : presentation === 'generic' ? (
                 <PillLabelText>
                   {content.text ?? <Trans>New posts</Trans>}
@@ -263,61 +268,39 @@ function PillLabelText({children}: {children: React.ReactNode}) {
   )
 }
 
-/** SVG masks leave actual transparent gaps between the faces over glass. */
 function Facepile({authors}: {authors: NewPostsPillAuthor[]}) {
   const t = useTheme()
-  const instance = useId().replace(/[^a-zA-Z0-9]/g, '')
-  const radius = AVATAR_SIZE / 2
-  const step = AVATAR_SIZE - AVATAR_OVERLAP
-  const width = AVATAR_SIZE + (authors.length - 1) * step
 
   return (
-    <Svg width={width} height={AVATAR_SIZE} style={[a.z_10]}>
-      <Defs>
-        {authors.map((author, index) => (
-          <Mask
-            key={author.did}
-            id={`${instance}-${index}`}
-            maskUnits="userSpaceOnUse"
-            x={0}
-            y={0}
-            width={width}
-            height={AVATAR_SIZE}>
-            <Circle
-              cx={index * step + radius}
-              cy={radius}
-              r={radius}
-              fill="white"
-            />
-            {index > 0 && (
-              <Circle
-                cx={(index - 1) * step + radius}
-                cy={radius}
-                r={radius + FACE_GAP}
-                fill="black"
-              />
-            )}
-          </Mask>
-        ))}
-      </Defs>
+    <View style={[a.flex_row, a.align_center, a.z_10]}>
       {authors.map((author, index) => (
-        <G key={author.did} mask={`url(#${instance}-${index})`}>
-          <Circle
-            cx={index * step + radius}
-            cy={radius}
-            r={radius}
-            fill={t.atoms.bg_contrast_25.backgroundColor}
+        <View
+          key={author.did}
+          style={[
+            a.rounded_full,
+            a.overflow_hidden,
+            {
+              width: AVATAR_SIZE + FACE_GAP * 2,
+              height: AVATAR_SIZE + FACE_GAP * 2,
+              marginLeft: index > 0 ? -AVATAR_OVERLAP : 0,
+              zIndex: authors.length - index,
+              borderWidth: FACE_GAP,
+              borderColor: t.palette.primary_500,
+              backgroundColor: t.atoms.bg_contrast_25.backgroundColor,
+            },
+          ]}>
+          <ExpoImage
+            source={{uri: author.avatar}}
+            style={{
+              width: AVATAR_SIZE,
+              height: AVATAR_SIZE,
+              borderRadius: AVATAR_SIZE / 2,
+            }}
+            contentFit="cover"
+            accessibilityIgnoresInvertColors
           />
-          <Image
-            href={author.avatar}
-            x={index * step}
-            y={0}
-            width={AVATAR_SIZE}
-            height={AVATAR_SIZE}
-            preserveAspectRatio="xMidYMid slice"
-          />
-        </G>
+        </View>
       ))}
-    </Svg>
+    </View>
   )
 }
