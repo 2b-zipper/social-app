@@ -27,7 +27,7 @@ import {
 } from '#/state/queries/post-feed'
 import {truncateAndInvalidate} from '#/state/queries/util'
 import {useSession} from '#/state/session'
-import {PostFeed} from '#/view/com/posts/PostFeed'
+import {PostFeed, type PostFeedRef} from '#/view/com/posts/PostFeed'
 import {FAB} from '#/view/com/util/fab/FAB'
 import {type ListMethods} from '#/view/com/util/List'
 import {LoadLatestBtn} from '#/view/com/util/load-latest/LoadLatestBtn'
@@ -74,6 +74,7 @@ export function FeedPage({
   const headerOffset = useHeaderOffset()
   const feedFeedback = useFeedFeedback(feedInfo, hasSession)
   const scrollElRef = useRef<ListMethods>(null)
+  const postFeedRef = useRef<PostFeedRef>(null)
   const [hasNew, setHasNew] = useState(false)
   const [newAuthors, setNewAuthors] = useState<NewPostsPillAuthor[]>([])
   const setHomeBadge = useSetHomeBadge()
@@ -114,7 +115,11 @@ export function FeedPage({
       TabState.InsideAtRoot
     if (isScreenFocused && isPageFocused) {
       scrollToTop()
-      truncateAndInvalidate(queryClient, FEED_RQKEY(feed))
+      if (postFeedRef.current) {
+        void postFeedRef.current.refreshFeed()
+      } else {
+        void truncateAndInvalidate(queryClient, FEED_RQKEY(feed, feedParams))
+      }
       setHasNew(false)
       setNewAuthors([])
       ax.metric('feed:refresh', {
@@ -123,7 +128,15 @@ export function FeedPage({
         reason: 'soft-reset',
       })
     }
-  }, [ax, navigation, isPageFocused, scrollToTop, queryClient, feed])
+  }, [
+    ax,
+    navigation,
+    isPageFocused,
+    scrollToTop,
+    queryClient,
+    feed,
+    feedParams,
+  ])
 
   // fires when page within screen is activated/deactivated
   useEffect(() => {
@@ -139,7 +152,11 @@ export function FeedPage({
 
   const onPressLoadLatest = useCallback(() => {
     scrollToTop()
-    truncateAndInvalidate(queryClient, FEED_RQKEY(feed))
+    if (postFeedRef.current) {
+      void postFeedRef.current.refreshFeed()
+    } else {
+      void truncateAndInvalidate(queryClient, FEED_RQKEY(feed, feedParams))
+    }
     setHasNew(false)
     setNewAuthors([])
     ax.metric('feed:refresh', {
@@ -147,7 +164,7 @@ export function FeedPage({
       feedUrl: feed,
       reason: 'load-latest',
     })
-  }, [ax, scrollToTop, feed, queryClient])
+  }, [ax, scrollToTop, feed, feedParams, queryClient])
 
   const shouldPrefetch = IS_NATIVE && isPageAdjacent
   const isDiscoverFeed = feedInfo.uri === DISCOVER_FEED_URI
@@ -167,6 +184,7 @@ export function FeedPage({
       <MainScrollProvider>
         <FeedFeedbackProvider value={feedFeedback}>
           <PostFeed
+            ref={postFeedRef}
             testID={testID ? `${testID}-feed` : undefined}
             enabled={isPageFocused || shouldPrefetch}
             feed={feed}

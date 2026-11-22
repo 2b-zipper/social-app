@@ -491,17 +491,20 @@ export function usePostFeedRefresh(
   /** The pending refresh, for another to join. */
   const pending = useRef<Promise<FeedPageUnselected | undefined>>(undefined)
 
-  const refreshFromTop = async () => {
+  const refreshFromTop = async (stagedPage?: FeedPageUnselected) => {
     const before = queryClient.getQueryData<PostFeedData>(queryKey)
     setError(undefined)
     setIsRefreshing(true)
     try {
-      const page = await fetchPage(undefined)
-      const wrote = await commit(queryClient, queryKey, before, () => ({
+      const page = stagedPage
+        ? {...stagedPage, fetchedAt: Date.now()}
+        : await fetchPage(undefined)
+      await queryClient.cancelQueries({queryKey, exact: true})
+      queryClient.setQueryData<PostFeedData>(queryKey, {
         pages: [page],
         pageParams: [undefined],
-      }))
-      return wrote ? page : undefined
+      })
+      return page
     } catch (e) {
       if (!isNetworkError(e)) {
         logger.error('Failed to refresh posts feed', {safeMessage: e})
@@ -516,7 +519,7 @@ export function usePostFeedRefresh(
     }
   }
 
-  const refresh = () => {
+  const refresh = (stagedPage?: FeedPageUnselected) => {
     /*
      * Until the first load settles there's nothing to refresh, and the query
      * may still be waiting for the preferences it fetches with.
@@ -524,6 +527,10 @@ export function usePostFeedRefresh(
     const status = queryClient.getQueryState(queryKey)?.status
     if (!status || status === 'pending') {
       return Promise.resolve(undefined)
+    }
+    if (stagedPage) {
+      pending.current = refreshFromTop(stagedPage)
+      return pending.current
     }
     pending.current ??= refreshFromTop()
     return pending.current
@@ -1149,8 +1156,20 @@ async function commit(
  * Whether the feed has a newer post than its top `page` has seen. `api` should
  * be a fresh one from {@link usePostFeedFetcher}.
  */
-export async function pollLatest(page: FeedPage | undefined, api: FeedAPI) {
-  const res = await pollLatestAuthors(page, api)
+export async function pollLatest(
+  page: FeedPage | undefined,
+  api: FeedAPI,
+  forceHasNew = false,
+  moderationOpts?: ModerationOpts,
+  ignoreFilterFor?: string,
+) {
+  const res = await pollLatestAuthors(
+    page,
+    api,
+    forceHasNew,
+    moderationOpts,
+    ignoreFilterFor,
+  )
   return res.hasNew
 }
 
@@ -1158,7 +1177,13 @@ export async function pollLatestAuthors(
   page: FeedPage | undefined,
   api: FeedAPI,
   forceHasNew = false,
-): Promise<{hasNew: boolean; authors: {did: string; avatar?: string}[]}> {
+  moderationOpts?: ModerationOpts,
+  ignoreFilterFor?: string,
+): Promise<{
+  hasNew: boolean
+  authors: {did: string; avatar?: string}[]
+  polledPage?: FeedPageUnselected
+}> {
   if (!page) {
     return {hasNew: false, authors: []}
   }
@@ -1173,52 +1198,92 @@ export async function pollLatestAuthors(
   logger.debug('usePostFeedQuery: pollLatest')
   const res = await api.fetch({
     cursor: undefined,
-    limit: 15,
+    limit: MIN_POSTS,
     source: page.source,
   })
-  if (res.feed.length) {
-    const unseenFeed = res.feed.filter(
-      item => !page.tuner.seenUris.has(item.post.uri),
-    )
-    const slices = unseenFeed.length
-      ? page.tuner.tune(unseenFeed, {dryRun: true})
-      : []
-    if (slices.length > 0 || forceHasNew) {
-      const authors: {did: string; avatar?: string}[] = []
-      const addAuthor = (author: app.bsky.actor.defs.ProfileViewBasic) => {
-        if (
-          author.avatar &&
-          authors.length < 3 &&
-          !authors.some(a => a.did === author.did)
-        ) {
-          authors.push({did: author.did, avatar: author.avatar})
-        }
-      }
-      for (const slice of slices) {
-        addAuthor(slice._feedPost.post.author)
-      }
-      if (authors.length < 3) {
-        for (const item of unseenFeed.length ? unseenFeed : res.feed) {
-          addAuthor(item.post.author)
-        }
-      }
-      return {hasNew: true, authors}
-    }
+  const polledPage: FeedPageUnselected = {
+    cursor: res.cursor,
+    startCursor: res.startCursor,
+    source: res.source,
+    feed: res.feed,
+    fetchedAt: Date.now(),
   }
 
-  if (forceHasNew) {
-    const fallbackAuthors: {did: string; avatar?: string}[] = []
-    for (const slice of page.slices) {
-      const author = slice.items[0]?.post.author
-      if (
-        author?.avatar &&
-        fallbackAuthors.length < 3 &&
-        !fallbackAuthors.some(a => a.did === author.did)
-      ) {
-        fallbackAuthors.push({did: author.did, avatar: author.avatar})
+  if (res.feed.length) {
+    const freshTuner = new FeedTuner(page.tuner.tunerFns)
+    const tunedSlices = freshTuner.tune(res.feed)
+
+    const visibleSlices = moderationOpts
+      ? tunedSlices.filter(slice => {
+          for (const item of slice.items) {
+            const ignoreFilter = item.post.author.did === ignoreFilterFor
+            const mod = moderatePost(item.post, moderationOpts)
+            if (!ignoreFilter && mod?.ui('contentList').filter) {
+              return false
+            }
+          }
+          return true
+        })
+      : tunedSlices
+
+    const currentUris = new Set<string>(page.tuner.seenUris)
+    for (const s of page.slices) {
+      currentUris.add(s.feedPostUri)
+      for (const item of s.items) {
+        currentUris.add(item.uri)
       }
     }
-    return {hasNew: true, authors: fallbackAuthors}
+
+    const unseenNewSlices = []
+    for (const slice of visibleSlices) {
+      const isAlreadyVisible =
+        currentUris.has(slice.feedPostUri) ||
+        slice.items.some(item => currentUris.has(item.post.uri))
+      if (isAlreadyVisible) {
+        if (!forceHasNew) {
+          break
+        }
+        continue
+      }
+      unseenNewSlices.push(slice)
+    }
+
+    if (
+      unseenNewSlices.length > 0 ||
+      (forceHasNew && visibleSlices.length > 0)
+    ) {
+      const authors: {did: string; avatar?: string}[] = []
+      const addAuthor = (post: app.bsky.feed.defs.PostView) => {
+        const author = post.author
+        if (!author.avatar || authors.length >= 3) {
+          return
+        }
+        if (authors.some(a => a.did === author.did)) {
+          return
+        }
+        if (
+          moderationOpts &&
+          moderatePost(post, moderationOpts).ui('avatar').blur
+        ) {
+          return
+        }
+        authors.push({did: author.did, avatar: author.avatar})
+      }
+
+      const sourceSlices =
+        unseenNewSlices.length > 0 ? unseenNewSlices : visibleSlices
+      for (const slice of sourceSlices) {
+        addAuthor(slice._feedPost.post)
+      }
+      if (authors.length < 3) {
+        for (const slice of sourceSlices) {
+          for (const item of slice.items) {
+            addAuthor(item.post)
+          }
+        }
+      }
+      return {hasNew: true, authors, polledPage}
+    }
   }
 
   return {hasNew: false, authors: []}

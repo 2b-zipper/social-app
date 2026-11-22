@@ -20,7 +20,7 @@ import {
 } from 'react-native'
 import {type RichText as RichTextType} from '@bsky/sdk/richtext'
 import {useLingui} from '@lingui/react/macro'
-import {useQueryClient} from '@tanstack/react-query'
+import {type InfiniteData, useQueryClient} from '@tanstack/react-query'
 
 import {DISCOVER_FEED_URI, KNOWN_SHUTDOWN_FEEDS} from '#/lib/constants'
 import {useBottomBarOffset} from '#/lib/hooks/useBottomBarOffset'
@@ -31,11 +31,13 @@ import {logger} from '#/logger'
 import {usePostAuthorShadowFilter} from '#/state/cache/profile-shadow'
 import {listenPostCreated} from '#/state/events'
 import {useFeedFeedbackContext} from '#/state/feed-feedback'
+import {useModerationOpts} from '#/state/preferences/moderation-opts'
 import {useTrendingSettings} from '#/state/preferences/trending'
 import {STALE} from '#/state/queries'
 import {
   type AuthorFilter,
   type FeedDescriptor,
+  type FeedPageUnselected,
   type FeedParams,
   type FeedPostSlice,
   type FeedPostSliceItem,
@@ -308,6 +310,8 @@ let PostFeed = ({
     fetchNextPage,
   } = usePostFeedQuery(feed, feedParams, opts)
   const lastFetchedAt = data?.pages[0].fetchedAt
+  const moderationOpts = useModerationOpts()
+  const stagedPageRef = useRef<FeedPageUnselected | undefined>(undefined)
   const isEmpty = useMemo(
     () => !isFetching && !data?.pages?.some(page => page.slices.length),
     [isFetching, data],
@@ -327,8 +331,16 @@ let PostFeed = ({
     const isDiscover = feedUriOrActorDid === DISCOVER_FEED_URI
 
     try {
-      const res = await pollLatestAuthors(data.pages[0], isDiscover)
+      const res = await pollLatestAuthors(
+        data.pages[0],
+        isDiscover,
+        moderationOpts,
+        ignoreFilterFor,
+      )
       if (res.hasNew) {
+        if (res.polledPage) {
+          stagedPageRef.current = res.polledPage
+        }
         if (isEmpty) {
           void refetch()
         } else {
@@ -336,9 +348,7 @@ let PostFeed = ({
         }
       }
     } catch (e) {
-      if (isDiscover) {
-        onHasNew(true, [])
-      } else if (!isNetworkError(e)) {
+      if (!isNetworkError(e)) {
         logger.warn('Poll latest failed', {feed, message: String(e)})
       }
     }
@@ -752,7 +762,21 @@ let PostFeed = ({
       reason: 'pull-to-refresh',
     })
     try {
-      await truncateAndInvalidate(queryClient, RQKEY(feed, feedParams))
+      const queryKey = RQKEY(feed, feedParams)
+      const staged = stagedPageRef.current
+      stagedPageRef.current = undefined
+      if (staged) {
+        await queryClient.cancelQueries({queryKey})
+        queryClient.setQueryData<InfiniteData<FeedPageUnselected>>(queryKey, {
+          pages: [{...staged, fetchedAt: Date.now()}],
+          pageParams: [undefined],
+        })
+        if (feedUriOrActorDid !== DISCOVER_FEED_URI) {
+          void queryClient.invalidateQueries({queryKey})
+        }
+      } else {
+        await truncateAndInvalidate(queryClient, queryKey)
+      }
       if (onHasNew) {
         onHasNew(false)
       }

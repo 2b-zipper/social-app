@@ -33,6 +33,7 @@ import {logger} from '#/logger'
 import {usePostAuthorShadowFilter} from '#/state/cache/profile-shadow'
 import {listenPostCreated} from '#/state/events'
 import {useFeedFeedbackContext} from '#/state/feed-feedback'
+import {useModerationOpts} from '#/state/preferences/moderation-opts'
 import {useTrendingSettings} from '#/state/preferences/trending'
 import {STALE} from '#/state/queries'
 import {truncateAndInvalidate} from '#/state/queries/util'
@@ -68,7 +69,6 @@ import {PostFeedSkeleton} from '#/components/PostFeedSkeleton'
 import {RichText} from '#/components/RichText'
 import {useAnalytics} from '#/analytics'
 import {IS_IOS, IS_NATIVE, IS_WEB} from '#/env'
-import {isFollowingV2Eligible} from '#/features/followingV2/eligibility'
 import {DiscoverFeedLiveEventFeedsAndTrendingBanner} from '#/features/liveEvents/components/DiscoverFeedLiveEventFeedsAndTrendingBanner'
 import {
   isStatusStillActive,
@@ -83,6 +83,7 @@ import {PrependPill} from './PrependPill'
 import {
   type AuthorFilter,
   type FeedDescriptor,
+  type FeedPageUnselected,
   type FeedParams,
   type FeedPostSlice,
   type FeedPostSliceItem,
@@ -375,6 +376,8 @@ let PostFeed = ({
       ? {...feedData, pages: mixSamples(feedData.pages, samples)}
       : feedData
   const lastFetchedAt = data?.pages[0].fetchedAt
+  const moderationOpts = useModerationOpts()
+  const stagedPageRef = useRef<FeedPageUnselected | undefined>(undefined)
   const isEmpty = useMemo(
     () => !isFetching && !data?.pages?.some(page => page.slices.length),
     [isFetching, data],
@@ -386,7 +389,7 @@ let PostFeed = ({
    * rows that would sit above the posts are left out, as they'd take the
    * anchor from them.
    */
-  const isAnchored = feed === 'following' && isFollowingV2Eligible(ax)
+  const isAnchored = false
   /**
    * When the list is at rest, for prepends to wait for. Its scroll handlers
    * take the corrections anchoring makes to the offset out of what the Home
@@ -434,7 +437,12 @@ let PostFeed = ({
     })
   })
   const refreshToTop = async () => {
-    const page = await refresh()
+    const staged = stagedPageRef.current
+    stagedPageRef.current = undefined
+    const page = await refresh(staged)
+    if (staged && feedUriOrActorDid !== DISCOVER_FEED_URI) {
+      void queryClient.invalidateQueries({queryKey: RQKEY(feed, feedParams)})
+    }
     if (!page || !isAnchored) {
       return
     }
@@ -476,8 +484,13 @@ let PostFeed = ({
         data.pages[0],
         createFeedApi(),
         isDiscover,
+        moderationOpts,
+        ignoreFilterFor,
       )
       if (res.hasNew) {
+        if (res.polledPage) {
+          stagedPageRef.current = res.polledPage
+        }
         if (isEmpty) {
           void refreshToTop()
         } else {
@@ -485,9 +498,7 @@ let PostFeed = ({
         }
       }
     } catch (e) {
-      if (isDiscover) {
-        onHasNew(true, [])
-      } else if (!isNetworkError(e)) {
+      if (!isNetworkError(e)) {
         logger.warn('Poll latest failed', {feed, message: String(e)})
       }
     }

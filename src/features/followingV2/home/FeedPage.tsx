@@ -34,7 +34,6 @@ import {EditBig_Stroke2_Corner2_Rounded as EditBigIcon} from '#/components/icons
 import {type NewPostsPillAuthor} from '#/components/NewPostsPill'
 import {useAnalytics} from '#/analytics'
 import {IS_NATIVE, IS_WEB} from '#/env'
-import {isFollowingV2Eligible} from '#/features/followingV2/eligibility'
 import {app} from '#/lexicons'
 import {PostFeed, type PostFeedRef} from './PostFeed'
 import {PrependPill} from './PrependPill'
@@ -151,7 +150,7 @@ export function FeedPage({
 
   const shouldPrefetch = IS_NATIVE && isPageAdjacent
   const isDiscoverFeed = feedInfo.uri === DISCOVER_FEED_URI
-  const isAnchored = feed === 'following' && isFollowingV2Eligible(ax)
+  const isAnchored = false
   return (
     <View
       testID={testID}

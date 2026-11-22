@@ -152,6 +152,7 @@ export async function truncateAndInvalidate<T = any>(
   queryClient: QueryClient,
   queryKey: QueryKey,
 ) {
+  await queryClient.cancelQueries({queryKey})
   queryClient.setQueriesData<InfiniteData<T>>({queryKey}, data => {
     if (data) {
       return {
